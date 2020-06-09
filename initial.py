@@ -23,9 +23,10 @@ class Initial(object):
 if __name__ == '__main__':
     from initial import Initial
     import matplotlib.pyplot as plt
-    in_d = Initial(5, np.ones(5))
+    in_d = Initial(3)
     sample_set = []
     for _i in range(500):
         sample_set.append(in_d.sample())
     plt.hist(sample_set)
+    plt.title('Sample from ' + str(in_d.density))
     plt.show()
