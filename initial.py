@@ -8,6 +8,8 @@ class Initial(object):
             density = np.random.rand(self.n_modes)
         if not(np.shape(density)[0] == self.n_modes):
             raise ValueError('initial.py: shape of initial density not compatible with number of modes!')
+
+        # Making the vector an actual probability density
         density = np.maximum(density, 0.0)
         density /= np.sum(density)
         self.density = density
