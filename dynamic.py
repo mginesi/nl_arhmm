@@ -35,7 +35,7 @@ class Dynamic(object):
         T = np.asarray(output_set)
         self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
 
-    def give_vector_field(self, x):
+    def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
 from dynamic import Dynamic
@@ -81,7 +81,7 @@ _x_t = rho * np.array([np.cos(theta), np.sin(theta)])
 x = [_x]
 x_true = [_x_t]
 for t in range(1000):
-    _x = dyn.give_vector_field(_x)
+    _x = dyn.apply_vector_field(_x)
     _x_t = _x_t + dt * vf(_x_t)
     x.append(_x)
     x_true.append(_x_t)
