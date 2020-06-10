@@ -26,6 +26,18 @@ class NL_ARHMM(object):
         mu = self.dynamics[mode].apply_vector_field(y0)
         return normal_prob(y1, mu, self.sigma_set[mode])
 
+    def set_up_dynamic_guess(self, in_data, out_data):
+        '''
+        Set up a guess for the weights by dividing the input and output set in m equal
+        segments (m being the number of modes).
+        '''
+        t_seg = int(len(in_data) / self.n_modes)
+        for _m in range(self.n_modes):
+            _in_set = in_data[_m * t_seg:(_m + 1) * t_seg]
+            _out_set = out_data[_m * t_seg:(_m + 1) * t_seg]
+            self.dynamics[_m].learn_vector_field(_in_set, _out_set)
+            self.sigma_set[_m] = # TODO: how to estimate covariance mtrx? <- write the function in dynamic.py
+
     def simulate(self, y0=None, T=100):
         if y0 is None:
             y0 = np.zeros(self.n_dim)
