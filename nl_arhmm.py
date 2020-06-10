@@ -4,10 +4,11 @@ import copy
 from initial import Initial
 from transition import Transition
 from dynamic import Dynamic
+from utils import normal_prob
 
 class NL_ARHMM(object):
 
-    def __init__(self, n_dim, n_modes, dyn_centers, dyn_widths, dyn_weights):
+    def __init__(self, n_dim, n_modes, dyn_centers, dyn_widths, dyn_weights, sigmas):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models
         '''
@@ -19,6 +20,11 @@ class NL_ARHMM(object):
         # TODO: default values for centers, widths and weights?
         for _ in range(self.n_modes):
             self.dynamics.append(Dynamic(self.n_dim, dyn_centers, dyn_widths, dyn_weights))
+        self.sigma_set = sigmas
+
+    def give_prob_of_next_step(self, y0, y1, mode):
+        mu = self.dynamics[mode].apply_vector_field(y0)
+        return normal_prob(y1, mu, self.sigma_set[mode])
 
     def simulate(self, y0=None, T=100):
         if y0 is None:
