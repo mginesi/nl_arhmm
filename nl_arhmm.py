@@ -36,7 +36,7 @@ class NL_ARHMM(object):
             _in_set = in_data[_m * t_seg:(_m + 1) * t_seg]
             _out_set = out_data[_m * t_seg:(_m + 1) * t_seg]
             self.dynamics[_m].learn_vector_field(_in_set, _out_set)
-            self.sigma_set[_m] = # TODO: how to estimate covariance mtrx? <- write the function in dynamic.py
+            self.sigma_set[_m] = self.dynamics.estimate_cov_mtrx(_in_set, _out_set)
 
     def simulate(self, y0=None, T=100):
         if y0 is None:

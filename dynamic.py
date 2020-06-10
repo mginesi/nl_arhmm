@@ -24,6 +24,20 @@ class Dynamic(object):
         phi[1:] = np.exp(-self.widths * np.linalg.norm(self.centers - x, axis=1) ** 2.0)
         return phi
 
+    def estimate_cov_mtrx(self, input_set, output_set):
+        '''
+        Given a set of input vectors and a set of output vectors, return the covariance matrix.
+        It is computed as the covariance of the errors when applying the vector field.
+        '''
+        # TODO: check if there is a better way!!
+        pred_set = []
+        for _, _in in enumerate(input_set):
+            pred_set.append(self.apply_vector_field(_in))
+        pred_set = np.asarray(pred_set)
+        output_set = np.asarray(output_set)
+        err_set = output_set - pred_set
+        return np.cov(np.transpose(err_set))
+
     def learn_vector_field(self, input_set, output_set):
         '''
         Compute the set of weights given the input and output set.
