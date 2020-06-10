@@ -24,5 +24,16 @@ class Dynamic(object):
         phi[1:] = np.exp(-self.widths * np.linalg.norm(self.centers - x, axis=1) ** 2.0)
         return phi
 
+    def learn_vector_field(self, input_set, output_set):
+        '''
+        Compute the set of weights given the input and output set.
+        '''
+        n_data = len(input_set)
+        phi_mat = np.zeros([n_data, self.n_basis + 1])
+        for _n in range(n_data):
+            phi_mat[_n] = self.compute_phi_vect(input_set[_n])
+        T = np.asarray(output_set)
+        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+
     def give_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
