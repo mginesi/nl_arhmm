@@ -4,13 +4,13 @@ import copy
 from initial import Initial
 from transition import Transition
 from dynamic import Dynamic
-from utils import normal_prob
+from utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
 class NL_ARHMM(object):
 
     def __init__(self, n_dim, n_modes, dyn_centers, dyn_widths, dyn_weights, sigmas):
         '''
-        Class to implement Non-Linear Auto-Regressive Hidden Markov Models
+        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
         self.n_dim = n_dim
         self.n_modes = n_modes
@@ -24,11 +24,16 @@ class NL_ARHMM(object):
 
     def e_step(self, data_stream):
         '''
-        Perform the Expectation step
+        Performs the Expectation step.
         '''
         alpha_stream = self.compute_forward_var(data_stream)
         beta_stream = self.compute_backward_var(data_stream)
         return [alpha_stream, beta_stream]
+
+    def m_step(self, alpha_stream, beta_stream):
+        '''
+        Performs the Maximization step.
+        '''
 
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
@@ -117,3 +122,31 @@ class NL_ARHMM(object):
                 beta[_t + 1] * p_future)
 
         return beta
+
+    # --------------------------------------------------------------------------------------- #
+    #                              Maximization step functions                                #
+    # --------------------------------------------------------------------------------------- #
+
+    def compute_gamma(self, alpha, beta):
+        return normalize_rows(alpha * beta)
+
+    def compute_xi(self, alpha, beta, data):
+        T = np.shape(alpha)[0] + 1
+        xi = np.zeros([T - 1, self.n_modes, self.n_modes])
+        p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
+        for _t in range(T - 2):
+            for _m in range(self.n_modes):
+                p_future[_m] = normal_prob(data[_t + 2],
+                    self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
+            xi[_t] = # TODO: vectorize the computation
+        return xi
+
+    def maximize_initial(self, gamma):
+        return gamma[0]
+
+    def maximize_transition(self, gamma, xi):
+        num = np.sum(xi, axis=0)
+        den = np.sum(gamma[:-1], axis=0)
+        # TODO: finish
+
+    def maximize_emissions(self, gamma):
