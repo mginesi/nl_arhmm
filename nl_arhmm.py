@@ -26,6 +26,9 @@ class NL_ARHMM(object):
         '''
         Perform the Expectation step
         '''
+        alpha_stream = self.compute_forward_var(data_stream)
+        beta_stream = self.compute_backward_var(data_stream)
+        return [alpha_stream, beta_stream]
 
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
@@ -112,3 +115,5 @@ class NL_ARHMM(object):
                     self.sigma_set[_m])
             beta[_t] = np.dot(self.transition.trans_mtrx,
                 beta[_t + 1] * p_future)
+
+        return beta
