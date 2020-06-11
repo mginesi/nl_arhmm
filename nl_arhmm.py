@@ -22,6 +22,11 @@ class NL_ARHMM(object):
             self.dynamics.append(Dynamic(self.n_dim, dyn_centers, dyn_widths, dyn_weights))
         self.sigma_set = sigmas
 
+    def e_step(self, data_stream):
+        '''
+        Perform the Expectation step
+        '''
+
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
         return normal_prob(y1, mu, self.sigma_set[mode])
@@ -51,3 +56,33 @@ class NL_ARHMM(object):
             _mode = self.transition.sample(_mode)
             mode_seq.append(_mode)
         return [state_seq, mode_seq]
+
+    # --------------------------------------------------------------------------------------- #
+    #                              Expectation step functions                                 #
+    # --------------------------------------------------------------------------------------- #
+
+    def compute_alpha_fun(self, data_stream):
+        '''
+        Recursively compute the forward variables
+          alpha(z_t) = p (y_0, .. , y_{t+1}, z_t | Theta^{old})
+        '''
+        # Initialization
+        T = len(data_stream) - 1
+        alpha = np.zeros([self.n_modes, T])
+
+        # Basis of recursion
+        for _m in range(self.n_modes):
+            alpha[0][_m] = normal_prob(data_stream[1],
+                self.dynamics[_m].apply_vector_field(data_stream[0]), self.sigma_set[_m]) * \
+                self.initial.density
+
+        # Recursion
+        p_future = np.zeros(self.n_modes) # initialization
+        for _t in range(1, T):
+            # Computing p(y_{t+1} | y_t, z_t)
+            for _m in range(self.n_modes):
+                p_future[_m] = normal_prob(data_stream[_t+1],
+                    self.dynamics[_m].apply_vector_field(data_stream[_t]), self.sigma_set[_m])
+                alpha[_t] = p_future * np.dot(self.transition.trans_mtrx, alpha[_t - 1])
+
+        return alpha
