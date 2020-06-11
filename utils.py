@@ -17,3 +17,9 @@ def normal_prob(y, mu, sigma):
         det_sigma = np.linalg.det(sigma)
         const = (0.3989422804014327 ** k) / np.sqrt(det_sigma)
         return const * np.exp(-0.5 * np.dot(y - mu, np.dot(sigma_inv, y - mu)))
+
+def normalize_vect(y):
+    '''
+    Return the normalize vector
+    '''
+    return y / np.linalg.norm(y)
