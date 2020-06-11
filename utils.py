@@ -20,6 +20,18 @@ def normal_prob(y, mu, sigma):
 
 def normalize_vect(y):
     '''
-    Return the normalize vector
+    Return the normalize vector.
     '''
     return y / np.linalg.norm(y)
+
+def normalize_rows(M):
+    '''
+    Normalize each row of the given matrix.
+    '''
+    return (M.transpose() / np.sum(M, 1)).transpose()
+
+def normalize_mtrx(M):
+    '''
+    Normalize the matrix to sum to 1.
+    '''
+    return M / np.sum(M)
