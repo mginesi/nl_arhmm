@@ -138,15 +138,16 @@ class NL_ARHMM(object):
             for _m in range(self.n_modes):
                 p_future[_m] = normal_prob(data[_t + 2],
                     self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
-            xi[_t] = # TODO: vectorize the computation
+            xi[_t] = self.transition.trans_mtrx * (beta[_t] * p_future) * \
+                np.reshape(alpha[_t], [self.n_modes, 1])
         return xi
 
     def maximize_initial(self, gamma):
-        return gamma[0]
+        return normalize_vect(gamma[0])
 
     def maximize_transition(self, gamma, xi):
         num = np.sum(xi, axis=0)
         den = np.sum(gamma[:-1], axis=0)
-        # TODO: finish
+        return normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
 
     def maximize_emissions(self, gamma):
