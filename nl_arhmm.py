@@ -22,18 +22,22 @@ class NL_ARHMM(object):
             self.dynamics.append(Dynamic(self.n_dim, dyn_centers, dyn_widths, dyn_weights))
         self.sigma_set = sigmas
 
-    def e_step(self, data_stream):
+    def em_algorithm(self, data_stream):
         '''
         Performs the Expectation step.
         '''
+        # Compute forward and backward variables
         alpha_stream = self.compute_forward_var(data_stream)
         beta_stream = self.compute_backward_var(data_stream)
-        return [alpha_stream, beta_stream]
 
-    def m_step(self, alpha_stream, beta_stream):
-        '''
-        Performs the Maximization step.
-        '''
+        # Compute gamma and xi functions
+        gamma_stream = self.compute_gamma(alpha_stream, beta_stream)
+        xi_stream = self.compute_xi(alpha_stream, beta_stream, data_stream)
+
+        # Maximize
+        self.maximize_initial(gamma_stream)
+        self.maximize_transition(gamma_stream, xi_stream)
+        self.maximize_emissions(gamma_stream, data_stream)
 
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
