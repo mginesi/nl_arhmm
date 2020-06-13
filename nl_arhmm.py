@@ -22,6 +22,13 @@ class NL_ARHMM(object):
             self.dynamics.append(Dynamic(self.n_dim, dyn_centers, dyn_widths, dyn_weights))
         self.sigma_set = sigmas
 
+    def compute_likelihood(self, alpha_stream, beta_stream):
+        '''
+        Compute the likelihood of the data
+          p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
+        '''
+        return np.sum(alpha_stream * beta_stream, axis=0)
+
     def em_step(self, data_stream):
         '''
         Performs a step of the EM algorithm.
