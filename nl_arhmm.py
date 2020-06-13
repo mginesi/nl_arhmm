@@ -143,11 +143,15 @@ class NL_ARHMM(object):
         return xi
 
     def maximize_initial(self, gamma):
-        return normalize_vect(gamma[0])
+        self.initial.density = normalize_vect(gamma[0])
 
     def maximize_transition(self, gamma, xi):
         num = np.sum(xi, axis=0)
         den = np.sum(gamma[:-1], axis=0)
-        return normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
+        self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
 
-    def maximize_emissions(self, gamma):
+    def maximize_emissions(self, gamma, data_stream):
+        in_data = data_stream[:-1]
+        out_data = data_stream[1:]
+        for _m in self.n_modes:
+            self.dynamics[_m].learn_vector_field(in_data, out_data, gamma[:, _m])
