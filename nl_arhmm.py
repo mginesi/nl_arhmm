@@ -22,12 +22,41 @@ class NL_ARHMM(object):
             self.dynamics.append(Dynamic(self.n_dim, dyn_centers, dyn_widths, dyn_weights))
         self.sigma_set = sigmas
 
-    def compute_likelihood(self, alpha_stream, beta_stream):
+    def compute_likelihood(self, data_stream):
+        '''
+        Compute the likelihood
+          p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
+        by scratch.
+        '''
+        alpha_stream = self.compute_forward_var(data_stream)
+        return self.give_likelihood(alpha_stream)
+
+
+    def give_likelihood(self, alpha_stream):
         '''
         Compute the likelihood of the data
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
         '''
         return np.sum(alpha_stream[-1])
+
+    def em_algorithm(self, data_set, verbose=True):
+        '''
+        Perform the EM algorithm.
+        '''
+        # Check if data_set is a single demonstration or a list
+        if not(isinstance(data_set, list)):
+            data_set = [data_set]
+
+        # Perform EM algorithm
+        tol = 0.1
+        for _data_stream in enumerate(data_set):
+            old_lh = self.compute_likelihood(_data_stream)
+            convergence = False
+            while not convergence:
+                new_lh = self.em_step(_data_stream)
+                convergence = ((new_lh - old_lh) / old_lh) < tol
+                if verbose:
+                    print(new_lh)
 
     def em_step(self, data_stream):
         '''
@@ -45,6 +74,8 @@ class NL_ARHMM(object):
         self.maximize_initial(gamma_stream)
         self.maximize_transition(gamma_stream, xi_stream)
         self.maximize_emissions(gamma_stream, data_stream)
+
+        return self.give_likelihood(alpha_stream)
 
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
