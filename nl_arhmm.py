@@ -27,7 +27,7 @@ class NL_ARHMM(object):
         Compute the likelihood of the data
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
         '''
-        return np.sum(alpha_stream * beta_stream, axis=0)
+        return np.sum(alpha_stream[-1] * beta_stream[-1])
 
     def em_step(self, data_stream):
         '''
