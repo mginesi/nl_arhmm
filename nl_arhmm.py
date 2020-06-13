@@ -22,9 +22,9 @@ class NL_ARHMM(object):
             self.dynamics.append(Dynamic(self.n_dim, dyn_centers, dyn_widths, dyn_weights))
         self.sigma_set = sigmas
 
-    def em_algorithm(self, data_stream):
+    def em_step(self, data_stream):
         '''
-        Performs the Expectation step.
+        Performs a step of the EM algorithm.
         '''
         # Compute forward and backward variables
         alpha_stream = self.compute_forward_var(data_stream)
