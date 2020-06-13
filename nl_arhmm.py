@@ -27,7 +27,7 @@ class NL_ARHMM(object):
         Compute the likelihood of the data
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
         '''
-        return np.sum(alpha_stream[-1] * beta_stream[-1])
+        return np.sum(alpha_stream[-1])
 
     def em_step(self, data_stream):
         '''
@@ -117,9 +117,7 @@ class NL_ARHMM(object):
         beta = np.zeros([self.n_modes, T])
 
         # Basis of recursion
-        for _m in range(self.n_modes):
-            beta[T - 1][_m] = normal_prob(data_stream[T],
-                self.dynamics[_m].apply_vector_field(data_stream[T - 1]), self.sigma_set[_m])
+        beta[T - 1] = np.ones(self.n_modes)
 
         # Recursion
         p_future = np.zeros(self.n_modes) # initialization
