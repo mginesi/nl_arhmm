@@ -54,7 +54,10 @@ dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 model = NL_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)],
                  [dyn_st.weights, dyn_ol.weights], [0.2 * np.eye(2), 0.2 * np.eye(2)])
 
-[state, mode_true] = model.simulate(_in)
+T = 100
+sigma = np.array([[1.2, 0.2],
+                  [0.2, 1.2]])
+[state, mode_true] = model.simulate(_in, T, sigma)
 
 mode_inferred = model.viterbi(state)
 
