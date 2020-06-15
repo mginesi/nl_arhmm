@@ -107,6 +107,43 @@ class NL_ARHMM(object):
             mode_seq.append(_mode)
         return [state_seq, mode_seq]
 
+    def viterbi(self, data_stream):
+        '''
+        Applies the Viterbi algorithm to compute the most probable sequence of states given
+        the observations.
+        '''
+        # Initialize the variables
+        T = len(data_stream) + 1
+        T_1 = np.zeros([T, self.n_modes])
+        T_2 = np.zeros([T, self.n_modes])
+        
+        # Compute the basis of recursion
+        for _s in self.n_modes:
+            T_1[0][_s] = self.give_prob_of_next_step(data_stream[0], data_stream[1], _s) * \
+                self.initial[_s]
+            # T_2[0] = 0.0
+
+        # Recursion over time
+        # FIXME: is it possible to vectorize something?
+        for _t in range(1, T):
+            for _s in self.n_modes:
+                to_maximize = T_1[_t - 1] * self.transition.trans_mtrx[:, _s] * \
+                    self.give_prob_of_next_step(data_stream[_t], data_stream[_t + 1], _s)
+                _max = np.max(to_maximize)
+                _argmax = np.where(to_maximize == _max)[0][0]
+                T_1[_t, _s] = copy.deepcopy(_max)
+                T_2[_t, _s] = copy.deepcopy(_argmax)
+
+        # Extract the most probable sequence
+        z = np.zeros(T)
+        max_T = np.max(T_1[T - 1])
+        argmax_T = np.where(T_1[T - 1] == max_T)[0][0]
+        z[-1] = argmax_T
+        for _t in range(T - 1, 1, -1):
+            z[t - 1] = T_2[_t, z[t]]
+        
+        return z
+
     # --------------------------------------------------------------------------------------- #
     #                              Expectation step functions                                 #
     # --------------------------------------------------------------------------------------- #
