@@ -11,7 +11,7 @@ def normal_prob(y, mu, sigma):
         if not (np.ndim(mu) == 1 and np.ndim(sigma) == 2 and np.ndim(y) == 1):
             raise ValueError('mu and y must be a 1d array and sigma a 2d array')
         k = np.shape(mu)[0]
-        if not (np.shape(sigma) == [k, k]):
+        if not (np.shape(sigma) == (k, k)):
             raise ValueError('sigma must be a square matrix with number or rows equals to mu and y')
         sigma_inv = np.linalg.inv(sigma)
         det_sigma = np.linalg.det(sigma)
