@@ -140,7 +140,7 @@ class NL_ARHMM(object):
         argmax_T = np.where(T_1[T - 1] == max_T)[0][0]
         z[-1] = argmax_T
         for _t in range(T - 1, 1, -1):
-            z[t - 1] = T_2[_t, z[t]]
+            z[_t - 1] = T_2[_t, z[_t]]
         
         return z
 
