@@ -49,14 +49,20 @@ class NL_ARHMM(object):
 
         # Perform EM algorithm
         tol = 0.1
-        for _data_stream in enumerate(data_set):
-            old_lh = self.compute_likelihood(_data_stream)
+        max_iter = 100
+        count = 0
+        for _, _data_stream in enumerate(data_set):
+            new_lh = self.compute_likelihood(_data_stream)
+            print('step 0: LH = ' + str(new_lh))
             convergence = False
             while not convergence:
+                count += 1
+                old_lh = copy.deepcopy(new_lh)
                 new_lh = self.em_step(_data_stream)
-                convergence = ((new_lh - old_lh) / old_lh) < tol
+                convergence = (((new_lh - old_lh) / old_lh) < tol) or (count > max_iter)
+                print((new_lh - old_lh) / old_lh)
                 if verbose:
-                    print(new_lh)
+                    print('step ' + str(count) + ': LH = ' + str(new_lh))
 
     def em_step(self, data_stream):
         '''
@@ -74,6 +80,9 @@ class NL_ARHMM(object):
         self.maximize_initial(gamma_stream)
         self.maximize_transition(gamma_stream, xi_stream)
         self.maximize_emissions(gamma_stream, data_stream)
+
+        # This re-computation is needed to compute the new likelihood
+        alpha_stream = self.compute_forward_var(data_stream)
 
         return self.give_likelihood(alpha_stream)
 
@@ -110,7 +119,7 @@ class NL_ARHMM(object):
             mode_seq.append(_mode)
         _y = self.dynamics[_mode].apply_vector_field(_y)
         state_seq.append(_y)
-        return [state_seq, mode_seq]
+        return [np.asarray(state_seq), mode_seq]
 
     def viterbi(self, data_stream):
         '''
@@ -159,13 +168,13 @@ class NL_ARHMM(object):
         '''
         # Initialization
         T = len(data_stream) - 1
-        alpha = np.zeros([self.n_modes, T])
+        alpha = np.zeros([T, self.n_modes])
 
         # Basis of recursion
         for _m in range(self.n_modes):
             alpha[0][_m] = normal_prob(data_stream[1],
                 self.dynamics[_m].apply_vector_field(data_stream[0]), self.sigma_set[_m]) * \
-                self.initial.density
+                self.initial.density[_m]
 
         # Recursion
         p_future = np.zeros(self.n_modes) # initialization
@@ -186,14 +195,14 @@ class NL_ARHMM(object):
         '''
         # Initialization
         T = len(data_stream) - 1
-        beta = np.zeros([self.n_modes, T])
+        beta = np.zeros([T, self.n_modes])
 
         # Basis of recursion
         beta[T - 1] = np.ones(self.n_modes)
 
         # Recursion
         p_future = np.zeros(self.n_modes) # initialization
-        for _t in range(T - 2, 0, -1):
+        for _t in range(T - 2, -1, -1):
             # Computing p(y_{t+2} | y_{t+1}, z_{t+1})
             for _m in range(self.n_modes):
                 p_future[_m] = normal_prob(data_stream[_t + 2],
@@ -212,14 +221,14 @@ class NL_ARHMM(object):
         return normalize_rows(alpha * beta)
 
     def compute_xi(self, alpha, beta, data):
-        T = np.shape(alpha)[0] + 1
+        T = np.shape(alpha)[0]
         xi = np.zeros([T - 1, self.n_modes, self.n_modes])
         p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
-        for _t in range(T - 2):
+        for _t in range(T - 1):
             for _m in range(self.n_modes):
                 p_future[_m] = normal_prob(data[_t + 2],
                     self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
-            xi[_t] = self.transition.trans_mtrx * (beta[_t] * p_future) * \
+            xi[_t] = self.transition.trans_mtrx * (beta[_t + 1] * p_future) * \
                 np.reshape(alpha[_t], [self.n_modes, 1])
         return xi
 
@@ -234,5 +243,5 @@ class NL_ARHMM(object):
     def maximize_emissions(self, gamma, data_stream):
         in_data = data_stream[:-1]
         out_data = data_stream[1:]
-        for _m in self.n_modes:
+        for _m in range(self.n_modes):
             self.dynamics[_m].learn_vector_field(in_data, out_data, gamma[:, _m])
