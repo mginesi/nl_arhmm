@@ -51,10 +51,12 @@ class NL_ARHMM(object):
         tol = 0.1
         max_iter = 100
         # TODO: invert for and while loop?
+        trial = 0
         for _, _data_stream in enumerate(data_set):
+            trial += 1
             count = 0
             new_lh = self.compute_likelihood(_data_stream)
-            print('step 0: LH = ' + str(new_lh))
+            print('Signal ' + str(trial) + ', step 0: LH = ' + str(new_lh))
             convergence = False
             while not convergence:
                 count += 1
@@ -62,7 +64,7 @@ class NL_ARHMM(object):
                 new_lh = self.em_step(_data_stream)
                 convergence = (((new_lh - old_lh) / old_lh) < tol) or (count > max_iter)
                 if verbose:
-                    print('step ' + str(count) + ': LH = ' + str(new_lh))
+                    print('Signal ' + str(trial) + ', step ' + str(count) + ': LH = ' + str(new_lh))
 
     def em_step(self, data_stream):
         '''
