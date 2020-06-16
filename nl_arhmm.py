@@ -50,8 +50,9 @@ class NL_ARHMM(object):
         # Perform EM algorithm
         tol = 0.1
         max_iter = 100
-        count = 0
+        # TODO: invert for and while loop?
         for _, _data_stream in enumerate(data_set):
+            count = 0
             new_lh = self.compute_likelihood(_data_stream)
             print('step 0: LH = ' + str(new_lh))
             convergence = False
@@ -73,7 +74,7 @@ class NL_ARHMM(object):
 
         # Compute gamma and xi functions
         gamma_stream = self.compute_gamma(alpha_stream, beta_stream)
-        xi_stream = self.compute_xi(alpha_stream, beta_stream, data_stream)
+        xi_stream = self.compute_xi(alpha_stream, beta_stream, data_stream, c_rescale_stream)
 
         # Maximize
         self.maximize_initial(gamma_stream)
@@ -223,7 +224,7 @@ class NL_ARHMM(object):
     def compute_gamma(self, alpha, beta):
         return normalize_rows(alpha * beta)
 
-    def compute_xi(self, alpha, beta, data):
+    def compute_xi(self, alpha, beta, data, c_rescale):
         T = np.shape(alpha)[0]
         xi = np.zeros([T - 1, self.n_modes, self.n_modes])
         p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
@@ -232,7 +233,8 @@ class NL_ARHMM(object):
                 p_future[_m] = normal_prob(data[_t + 2],
                     self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
             xi[_t] = self.transition.trans_mtrx * (beta[_t + 1] * p_future) * \
-                np.reshape(alpha[_t], [self.n_modes, 1])
+                np.reshape(alpha[_t], [self.n_modes, 1]) / c_rescale[_t + 1]
+            xi[_t] = normalize_mtrx(xi[_t])
         return xi
 
     def maximize_initial(self, gamma):
