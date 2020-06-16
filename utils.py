@@ -22,7 +22,7 @@ def normalize_vect(y):
     '''
     Return the normalize vector.
     '''
-    return y / np.linalg.norm(y)
+    return y / np.sum(y)
 
 def normalize_rows(M):
     '''
