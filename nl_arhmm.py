@@ -60,7 +60,6 @@ class NL_ARHMM(object):
                 old_lh = copy.deepcopy(new_lh)
                 new_lh = self.em_step(_data_stream)
                 convergence = (((new_lh - old_lh) / old_lh) < tol) or (count > max_iter)
-                print((new_lh - old_lh) / old_lh)
                 if verbose:
                     print('step ' + str(count) + ': LH = ' + str(new_lh))
 
@@ -69,8 +68,8 @@ class NL_ARHMM(object):
         Performs a step of the EM algorithm.
         '''
         # Compute forward and backward variables
-        alpha_stream = self.compute_forward_var(data_stream)
-        beta_stream = self.compute_backward_var(data_stream)
+        alpha_stream, c_rescale_stream = self.compute_forward_var(data_stream)
+        beta_stream = self.compute_backward_var(data_stream, c_rescale_stream)
 
         # Compute gamma and xi functions
         gamma_stream = self.compute_gamma(alpha_stream, beta_stream)
@@ -169,12 +168,14 @@ class NL_ARHMM(object):
         # Initialization
         T = len(data_stream) - 1
         alpha = np.zeros([T, self.n_modes])
+        c_rescale = np.zeros(T)
 
         # Basis of recursion
         for _m in range(self.n_modes):
             alpha[0][_m] = normal_prob(data_stream[1],
                 self.dynamics[_m].apply_vector_field(data_stream[0]), self.sigma_set[_m]) * \
                 self.initial.density[_m]
+        c_rescale[0] = 1.0
 
         # Recursion
         p_future = np.zeros(self.n_modes) # initialization
@@ -185,10 +186,12 @@ class NL_ARHMM(object):
                     self.dynamics[_m].apply_vector_field(data_stream[_t]), self.sigma_set[_m])
             alpha[_t] = p_future * np.dot(np.transpose(self.transition.trans_mtrx),
                 alpha[_t - 1])
+            c_rescale[_t] = np.sum(alpha[_t])
+            alpha[_t] /= c_rescale[_t]
 
-        return alpha
+        return [alpha, c_rescale]
 
-    def compute_backward_var(self, data_stream):
+    def compute_backward_var(self, data_stream, c_rescale_stream):
         '''
         Recursively compute the backward variables
           beta(z_t) = p (y_{t+2}, .. , y_T | y_0, .. , y_{t+1}, z_t, Theta^{old})
@@ -209,7 +212,7 @@ class NL_ARHMM(object):
                     self.dynamics[_m].apply_vector_field(data_stream[_t + 1]),
                     self.sigma_set[_m])
             beta[_t] = np.dot(self.transition.trans_mtrx,
-                beta[_t + 1] * p_future)
+                beta[_t + 1] * p_future) / c_rescale_stream[_t + 1]
 
         return beta
 
