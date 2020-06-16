@@ -18,6 +18,11 @@ def normal_prob(y, mu, sigma):
         const = (0.3989422804014327 ** k) / np.sqrt(det_sigma)
         return const * np.exp(-0.5 * np.dot(y - mu, np.dot(sigma_inv, y - mu)))
 
+## ----------------------------------------------------------------------------------------- ##
+##  WARNING: This are not actual normalization, the output will always sum to 1, and not     ##
+##           necessarily have unitary norm.                                                  ##
+## ----------------------------------------------------------------------------------------- ##
+
 def normalize_vect(y):
     '''
     Return the normalize vector.
