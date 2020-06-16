@@ -57,20 +57,24 @@ model = NL_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)
 # Change the weights
 model.dynamics[0].weights *= 5.0
 model.dynamics[1].weights /= 5.0
+model.dynamics[0].weights = np.random.rand(model.dynamics[0].weights.shape[0],
+                                           model.dynamics[0].weights.shape[1])
+model.dynamics[1].weights = np.random.rand(model.dynamics[1].weights.shape[0],
+                                           model.dynamics[1].weights.shape[1])
 
 T = 100
 sigma = np.array([[1.2, 0.2],
                   [0.2, 1.2]])
 state = []
 mode_true = []
-num_signal = 2
+num_signal = 5
 for _ in range(num_signal):
     [_state, _mode_true] = model.simulate(_in, T, sigma)
     state.append(_state)
     mode_true.append(_mode_true)
 model.em_algorithm(state)
 
-mode_inferred = model.viterbi(state[0])
+mode_inferred = model.viterbi(state[-1])
 
 plt.figure()
 plt.subplot(211)
