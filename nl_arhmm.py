@@ -48,7 +48,7 @@ class NL_ARHMM(object):
             data_set = [data_set]
 
         # Perform EM algorithm
-        tol = 0.1
+        tol = 0.01
         max_iter = 100
         # TODO: invert for and while loop?
         trial = 0
@@ -178,7 +178,8 @@ class NL_ARHMM(object):
             alpha[0][_m] = normal_prob(data_stream[1],
                 self.dynamics[_m].apply_vector_field(data_stream[0]), self.sigma_set[_m]) * \
                 self.initial.density[_m]
-        c_rescale[0] = 1.0
+        c_rescale[0] = np.sum(alpha[0])
+        alpha[0] /= c_rescale[0]
 
         # Recursion
         p_future = np.zeros(self.n_modes) # initialization
