@@ -279,6 +279,6 @@ class Linear_ARHMM(ARHMM):
         self.transition = Transition(self.n_modes)
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Linear_Dynamic(self.n_dim))
+            self.dynamics.append(Linear_Dynamic(self.n_dim, dyn_mtrxs[_m]))
         self.sigma_set = sigmas
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set)
