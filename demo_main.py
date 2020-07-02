@@ -1,6 +1,6 @@
 import numpy as np
 from dynamic import GRBF_Dynamic
-from nl_arhmm import NL_ARHMM
+from nl_arhmm import GRBF_ARHMM
 import matplotlib.pyplot as plt
 
 ## Real dynamics
@@ -51,7 +51,7 @@ dyn_st.learn_vector_field(data_in, data_out_stable)
 dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 
 # Creating the NL - ARHMM
-model = NL_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)],
+model = GRBF_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)],
                  [dyn_st.weights, dyn_ol.weights], [0.2 * np.eye(2), 0.2 * np.eye(2)])
 
 # Change the weights
@@ -69,7 +69,7 @@ sigma = np.array([[1.2, 0.2],
                   [0.2, 1.2]])
 state = []
 mode_true = []
-num_signal = 15
+num_signal = 1
 for _ in range(num_signal):
     _rho = np.random.rand()
     _theta = np.random.rand() * 2.0 * np.pi

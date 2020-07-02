@@ -6,9 +6,9 @@ from transition import Transition
 from dynamic import GRBF_Dynamic
 from utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
-class NL_ARHMM(object):
+class ARHMM(object):
 
-    def __init__(self, n_dim, n_modes, dyn_centers, dyn_widths, dyn_weights, sigmas):
+    def __init__(self, n_dim, n_modes, dynamics, sigmas):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -16,10 +16,7 @@ class NL_ARHMM(object):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
-        self.dynamics = []
-        # TODO: default values for centers, widths and weights?
-        for _m in range(self.n_modes):
-            self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_centers[_m], dyn_widths[_m], dyn_weights[_m]))
+        self.dynamics = dynamics
         self.sigma_set = sigmas
 
     def compute_likelihood(self, data_stream):
@@ -30,7 +27,6 @@ class NL_ARHMM(object):
         '''
         alpha_stream = self.compute_forward_var(data_stream)
         return self.give_likelihood(alpha_stream)
-
 
     def give_likelihood(self, alpha_stream):
         '''
@@ -253,3 +249,19 @@ class NL_ARHMM(object):
         out_data = data_stream[1:]
         for _m in range(self.n_modes):
             self.dynamics[_m].learn_vector_field(in_data, out_data, gamma[:, _m])
+
+class GRBF_ARHMM(ARHMM):
+
+    def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, dyn_weights, sigmas):
+        '''
+        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
+        '''
+        self.n_dim = n_dim
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_center[_m], dyn_widths[_m], dyn_weights[_m]))
+        self.sigma_set = sigmas
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set)
