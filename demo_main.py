@@ -1,5 +1,5 @@
 import numpy as np
-from dynamic import Dynamic
+from dynamic import GRBF_Dynamic
 from nl_arhmm import NL_ARHMM
 import matplotlib.pyplot as plt
 
@@ -32,8 +32,8 @@ for _rho in range(3):
     for _theta in range(8):
         centers[8 * _rho + _theta, 0] = _rho * np.cos(_theta)
         centers[8 * _rho + _theta, 1] = _rho * np.sin(_theta)
-dyn_st = Dynamic(2, centers, 0.2 * np.ones(24))
-dyn_ol = Dynamic(2, centers, 0.2 * np.ones(24))
+dyn_st = GRBF_Dynamic(2, centers, 0.2 * np.ones(24))
+dyn_ol = GRBF_Dynamic(2, centers, 0.2 * np.ones(24))
 
 # Creating the data sample to infer the dynamics
 data_in = []

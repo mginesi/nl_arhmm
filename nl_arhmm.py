@@ -3,7 +3,7 @@ import copy
 
 from initial import Initial
 from transition import Transition
-from dynamic import Dynamic
+from dynamic import GRBF_Dynamic
 from utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
 class NL_ARHMM(object):
@@ -19,7 +19,7 @@ class NL_ARHMM(object):
         self.dynamics = []
         # TODO: default values for centers, widths and weights?
         for _m in range(self.n_modes):
-            self.dynamics.append(Dynamic(self.n_dim, dyn_centers[_m], dyn_widths[_m], dyn_weights[_m]))
+            self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_centers[_m], dyn_widths[_m], dyn_weights[_m]))
         self.sigma_set = sigmas
 
     def compute_likelihood(self, data_stream):

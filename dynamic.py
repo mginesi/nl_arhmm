@@ -1,6 +1,6 @@
 import numpy as np
 
-class Dynamic(object):
+class GRBF_Dynamic(object):
 
     def __init__(self, n_dim, centers, widths, weights=None):
         '''
