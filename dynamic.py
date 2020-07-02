@@ -108,8 +108,15 @@ class Linear_Dynamic(object):
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
+# ------------------------------------------------------------------------------------------- #
+#                                           Demo                                              #
+# ------------------------------------------------------------------------------------------- #
+
 if __name__ == "__main__":
-    from dynamic import Dynamic
+
+    # GRBF
+
+    from dynamic import GRBF_Dynamic
     import matplotlib.pyplot as plt
     rho = np.linspace(0.0, 1.0, 3)
     theta = np.linspace(0.0, 2.0 * np.pi, 9)
@@ -119,7 +126,7 @@ if __name__ == "__main__":
         for _theta in range(8):
             centers[8 * _rho + _theta, 0] = _rho * np.cos(_theta)
             centers[8 * _rho + _theta, 1] = _rho * np.sin(_theta)
-    dyn = Dynamic(2, centers, 0.2 * np.ones(24))
+    dyn = GRBF_Dynamic(2, centers, 0.2 * np.ones(24))
 
     def vf_stable(x):
         x1 = x[0]
@@ -192,7 +199,7 @@ if __name__ == "__main__":
     plt.legend(loc='best')
     plt.xlim([-1, 1])
     plt.ylim([-1, 1])
-    plt.title('Only stable')
+    plt.title('GRBF - Only stable')
 
     # Omega lim
     # Learning of the vector field
@@ -220,7 +227,7 @@ if __name__ == "__main__":
     plt.legend(loc='best')
     plt.xlim([-1, 1])
     plt.ylim([-1, 1])
-    plt.title('Only omega lim')
+    plt.title('GRBF - Only omega lim')
 
     # Mixed
     # Learning of the vector field
@@ -244,6 +251,36 @@ if __name__ == "__main__":
     plt.legend(loc='best')
     plt.xlim([-1, 1])
     plt.ylim([-1, 1])
-    plt.title('Mixed')
+    plt.title('GRBF - Mixed')
+
+    # Linear
+    
+    from dynamic import Linear_Dynamic
+
+    A_true = np.random.rand(2, 2) / 10.0 # true v.f.
+    b_true = np.random.rand(2) / 10.0
+    n_sample = 1000
+    in_set = []
+    out_set = []
+    for _n in range(n_sample):
+        in_set.append(np.random.rand(2))
+        out_set.append(np.dot(A_true, in_set[-1]) + b_true)
+
+    dyn = Linear_Dynamic(2)
+    dyn.learn_vector_field(in_set, out_set)
+
+    T = 100
+    x0 = np.random.rand(2)
+    x_demo = np.zeros([T, 2])
+    x_demo[0] = x0
+    x_demo_true = copy.deepcopy(x_demo)
+    for _t in range(T-1):
+        x_demo_true[_t+1] = np.dot(A_true, x_demo_true[_t]) + b_true
+        x_demo[_t + 1] = dyn.apply_vector_field(x_demo[_t])
+
+    plt.figure()
+    plt.plot(x_demo[:, 0], x_demo[:, 1], '-r', label='Inferred')
+    plt.plot(x_demo_true[:, 0], x_demo_true[:, 1], '--b', label='True')
+    plt.legend(loc='best')
 
     plt.show()
