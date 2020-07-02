@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 class GRBF_Dynamic(object):
 
@@ -47,6 +48,58 @@ class GRBF_Dynamic(object):
             weights = np.ones(n_data)
         sqrt_weights = np.sqrt(np.asarray(weights))
         phi_mat = np.zeros([n_data, self.n_basis + 1])
+        for _n in range(n_data):
+            phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
+        T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
+        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+
+    def apply_vector_field(self, x):
+        return np.dot(self.weights, self.compute_phi_vect(x))
+
+class Linear_Dynamic(object):
+
+    def __init__(self, n_dim, weights=None):
+        '''
+        Class encoding the dynamic.
+        '''
+        self.n_dim = copy.deepcopy(n_dim)
+        if weights is None:
+            weights = np.zeros([self.n_dim, self.n_dim + 1])
+        self.weights = copy.deepcopy(weights)
+
+    def compute_phi_vect(self, x):
+        '''
+        Compute the vector phi(x) which components are
+          phi_0 = 1
+          phi_j = x_j
+        '''
+        phi = np.ones(self.n_dim + 1)
+        phi[1:] = copy.deepcopy(x)
+        return phi
+
+    def estimate_cov_mtrx(self, input_set, output_set):
+        '''
+        Given a set of input vectors and a set of output vectors, return the covariance matrix.
+        It is computed as the covariance of the errors when applying the vector field.
+        '''
+        # TODO: check if there is a better way!!
+        pred_set = []
+        for _, _in in enumerate(input_set):
+            pred_set.append(self.apply_vector_field(_in))
+        pred_set = np.asarray(pred_set)
+        output_set = np.asarray(output_set)
+        err_set = output_set - pred_set
+        return np.cov(np.transpose(err_set))
+
+    def learn_vector_field(self, input_set, output_set, weights=None):
+        '''
+        Compute the set of weights given the input and output set.
+        '''
+        n_data = len(input_set)
+        if weights is None:
+            weights = np.ones(n_data)
+        sqrt_weights = np.sqrt(np.asarray(weights))
+        phi_mat = np.zeros([n_data, self.n_dim + 1])
         for _n in range(n_data):
             phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
