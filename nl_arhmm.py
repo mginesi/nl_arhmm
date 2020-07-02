@@ -4,6 +4,7 @@ import copy
 from initial import Initial
 from transition import Transition
 from dynamic import GRBF_Dynamic
+from dynamic import Linear_Dynamic
 from utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
 class ARHMM(object):
@@ -263,5 +264,21 @@ class GRBF_ARHMM(ARHMM):
         self.dynamics = []
         for _m in range(self.n_modes):
             self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_center[_m], dyn_widths[_m], dyn_weights[_m]))
+        self.sigma_set = sigmas
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set)
+
+class Linear_ARHMM(ARHMM):
+
+    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas):
+        '''
+        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
+        '''
+        self.n_dim = n_dim
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Linear_Dynamic(self.n_dim))
         self.sigma_set = sigmas
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set)

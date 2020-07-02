@@ -70,6 +70,7 @@ sigma = np.array([[1.2, 0.2],
 state = []
 mode_true = []
 num_signal = 1
+print(model.transition.trans_mtrx)
 for _ in range(num_signal):
     _rho = np.random.rand()
     _theta = np.random.rand() * 2.0 * np.pi
@@ -78,6 +79,7 @@ for _ in range(num_signal):
     state.append(_state)
     mode_true.append(_mode_true)
 model.em_algorithm(state)
+print(model.transition.trans_mtrx)
 
 mode_inferred = model.viterbi(state[-1])
 
