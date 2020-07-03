@@ -1,6 +1,6 @@
 import numpy as np
 from dynamic import GRBF_Dynamic
-from nl_arhmm import GRBF_ARHMM
+from arhmm import GRBF_ARHMM
 import matplotlib.pyplot as plt
 
 ## Real dynamics
