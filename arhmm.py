@@ -250,6 +250,12 @@ class ARHMM(object):
         out_data = data_stream[1:]
         for _m in range(self.n_modes):
             self.dynamics[_m].learn_vector_field(in_data, out_data, gamma[:, _m])
+            # TODO: maximize covariance matrix
+            _err = []
+            for _t, _in in enumerate(in_data):
+                _err.append(out_data[_t] - self.dynamics[_m].apply_vector_field(_in))
+            _err = np.transpose(np.asarray(_err))
+            self.sigma_set[_m] = np.cov(_err, ddof=0, aweights=gamma[:, _m])
 
 class GRBF_ARHMM(ARHMM):
 
