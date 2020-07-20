@@ -79,6 +79,7 @@ class ARHMM(object):
         self.maximize_initial(gamma_stream)
         self.maximize_transition(gamma_stream, xi_stream)
         self.maximize_emissions(gamma_stream, data_stream)
+        self.maximize_covariance_mtrx(gamma_stream, data_stream)
 
         # This re-computation is needed to compute the new likelihood
         alpha_stream = self.compute_forward_var(data_stream)
@@ -250,12 +251,23 @@ class ARHMM(object):
         out_data = data_stream[1:]
         for _m in range(self.n_modes):
             self.dynamics[_m].learn_vector_field(in_data, out_data, gamma[:, _m])
-            # Maximization of covariance matrix
-            _err = []
+    
+    def maximize_covariance_mtrx(self, gamma, data_stream):
+        in_data = data_stream[:-1]
+        out_data = data_stream[1:]
+        T = np.shape(out_data)[0]
+        for _m in range(self.n_modes):
+            out_data_exp = []
             for _t, _in in enumerate(in_data):
-                _err.append(out_data[_t] - self.dynamics[_m].apply_vector_field(_in))
-            _err = np.transpose(np.asarray(_err))
-            self.sigma_set[_m] = np.cov(_err, ddof=0, aweights=gamma[:, _m])
+                out_data_exp.append(self.dynamics[_m].apply_vector_field(_in))
+            out_data_exp = np.asarray(out_data_exp)
+            err = out_data - out_data_exp # x - mu
+            # err_row = np.reshape(np.transpose(err), [T, 1, self.n_dim])
+            # err_col = np.reshape(err, [T, self.n_dim, 1])
+            # num_to_sum = np.matmul(err_col, err_row) * np.reshape(gamma[:, _m], [T, 1, 1])
+            # den = np.sum(gamma[:, _m])
+            # self.sigma_set[_m] = np.nan_to_num(np.sum(num_to_sum, 0) / den)
+            self.sigma_set[_m] = np.cov(err.transpose(), ddof=0, aweights=gamma[:, _m])
 
 class GRBF_ARHMM(ARHMM):
 

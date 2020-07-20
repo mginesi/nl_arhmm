@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 dyn_mtrxs = [0.5 * np.random.rand(2,3), 0.5 * np.random.rand(2,3)]
 sigmas = []
 for _n in range(4):
-    rm = np.eye(2)
+    rm = np.eye(2) * 0.1
     sigmas.append(rm)
 model_true = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
 

@@ -32,8 +32,8 @@ for _rho in range(3):
     for _theta in range(8):
         centers[8 * _rho + _theta, 0] = _rho * np.cos(_theta)
         centers[8 * _rho + _theta, 1] = _rho * np.sin(_theta)
-dyn_st = GRBF_Dynamic(2, centers, 0.2 * np.ones(24))
-dyn_ol = GRBF_Dynamic(2, centers, 0.2 * np.ones(24))
+dyn_st = GRBF_Dynamic(2, centers, 0.5 * np.ones(24))
+dyn_ol = GRBF_Dynamic(2, centers, 0.5 * np.ones(24))
 
 # Creating the data sample to infer the dynamics
 data_in = []
@@ -51,8 +51,8 @@ dyn_st.learn_vector_field(data_in, data_out_stable)
 dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 
 # Creating the NL - ARHMM
-model = GRBF_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)],
-                 [dyn_st.weights, dyn_ol.weights], [0.2 * np.eye(2), 0.2 * np.eye(2)])
+model = GRBF_ARHMM(2, 2, [centers, centers], [0.5 * np.ones(24), 0.5 * np.ones(24)],
+                 [dyn_st.weights, dyn_ol.weights], [np.eye(2), np.eye(2)])
 
 # Change the weights
 # model.dynamics[0].weights *= 2 * np.random.rand()
@@ -65,11 +65,11 @@ model.dynamics[0].weights /= 10
 model.dynamics[1].weights /= 10
 
 T = 100
-sigma = np.array([[1.2, 0.2],
-                  [0.2, 1.2]])
+sigma = np.array([[1, 0],
+                  [0, 1]])
 state = []
 mode_true = []
-num_signal = 1
+num_signal = 5
 print(model.transition.trans_mtrx)
 for _ in range(num_signal):
     _rho = np.random.rand()
