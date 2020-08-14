@@ -1,5 +1,5 @@
 import numpy as np
-from arhmm import Linear_ARHMM
+from nl_arhmm.arhmm import Linear_ARHMM
 import matplotlib.pyplot as plt
 
 # ARHMM

@@ -1,2 +1,7 @@
 .vscode/launch.json
 *.pyc
+nl_arhmm.egg-info/dependency_links.txt
+nl_arhmm.egg-info/PKG-INFO
+nl_arhmm.egg-info/requires.txt
+nl_arhmm.egg-info/SOURCES.txt
+nl_arhmm.egg-info/top_level.txt

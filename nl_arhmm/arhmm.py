@@ -1,11 +1,11 @@
 import numpy as np
 import copy
 
-from initial import Initial
-from transition import Transition
-from dynamic import GRBF_Dynamic
-from dynamic import Linear_Dynamic
-from utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
+from nl_arhmm.initial import Initial
+from nl_arhmm.transition import Transition
+from nl_arhmm.dynamic import GRBF_Dynamic
+from nl_arhmm.dynamic import Linear_Dynamic
+from nl_arhmm.utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
 class ARHMM(object):
 
