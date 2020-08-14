@@ -79,7 +79,6 @@ class ARHMM(object):
         self.maximize_initial(gamma_stream)
         self.maximize_transition(gamma_stream, xi_stream)
         self.maximize_emissions(gamma_stream, data_stream)
-        self.maximize_covariance_mtrx(gamma_stream, data_stream)
 
         # This re-computation is needed to compute the new likelihood
         alpha_stream = self.compute_forward_var(data_stream)
@@ -249,25 +248,36 @@ class ARHMM(object):
     def maximize_emissions(self, gamma, data_stream):
         in_data = data_stream[:-1]
         out_data = data_stream[1:]
+        T = len(out_data)
+        out_data = np.asarray(out_data)
+        phi_in_data = []
+        # The phi map does not depend on the hidden mode, so we can compute it before the loop.
+        for _, _in in enumerate(in_data):
+            phi_in_data.append(self.dynamics[0].compute_phi_vect(_in))
+        dim_phi_data = phi_in_data[0].size
         for _m in range(self.n_modes):
-            self.dynamics[_m].learn_vector_field(in_data, out_data, gamma[:, _m])
-    
-    def maximize_covariance_mtrx(self, gamma, data_stream):
-        in_data = data_stream[:-1]
-        out_data = data_stream[1:]
-        T = np.shape(out_data)[0]
-        for _m in range(self.n_modes):
-            out_data_exp = []
-            for _t, _in in enumerate(in_data):
-                out_data_exp.append(self.dynamics[_m].apply_vector_field(_in))
-            out_data_exp = np.asarray(out_data_exp)
-            err = out_data - out_data_exp # x - mu
-            # err_row = np.reshape(np.transpose(err), [T, 1, self.n_dim])
-            # err_col = np.reshape(err, [T, self.n_dim, 1])
-            # num_to_sum = np.matmul(err_col, err_row) * np.reshape(gamma[:, _m], [T, 1, 1])
-            # den = np.sum(gamma[:, _m])
-            # self.sigma_set[_m] = np.nan_to_num(np.sum(num_to_sum, 0) / den)
-            self.sigma_set[_m] = np.cov(err.transpose(), ddof=0, aweights=gamma[:, _m])
+            gamma_m = gamma[:, _m]
+
+            # Update of the covariance matrix
+            expected_out_data = []
+            for _, _in in enumerate(in_data):
+                expected_out_data.append(self.dynamics[_m].apply_vector_field(_in))
+            expected_out_data = np.asarray(expected_out_data)
+            err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+            err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+            cov_err = np.matmul(err, err_t)
+            self.sigma_set[_m] = np.sum(cov_err * np.reshape(gamma_m, [T, 1, 1]), 0) / \
+                np.sum(gamma_m)
+
+            # Update of the matrix of weights
+            out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+            phi_in_row = np.reshape(np.asarray(phi_in_data), [T, 1, dim_phi_data])
+            phi_in_column = np.reshape(np.asarray(phi_in_data), [T, dim_phi_data, 1])
+            num = np.sum(
+                np.reshape(gamma_m, [T, 1, 1]) * np.matmul(out_data_3d, phi_in_row), 0)
+            den = np.sum(
+                np.reshape(gamma_m, [T, 1, 1]) * np.matmul(phi_in_column, phi_in_row), 0)
+            self.dynamics[_m].weights = np.dot(num, np.linalg.pinv(den))
 
 class GRBF_ARHMM(ARHMM):
 

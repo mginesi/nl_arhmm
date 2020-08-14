@@ -69,7 +69,7 @@ sigma = np.array([[1, 0],
                   [0, 1]])
 state = []
 mode_true = []
-num_signal = 5
+num_signal = 1
 print(model.transition.trans_mtrx)
 for _ in range(num_signal):
     _rho = np.random.rand()
