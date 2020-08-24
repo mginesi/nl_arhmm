@@ -36,7 +36,7 @@ class ARHMM(object):
         '''
         return np.sum(alpha_stream[-1])
 
-    def em_algorithm(self, data_set, verbose=True):
+    def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
         '''
         Perform the EM algorithm.
         '''
@@ -45,8 +45,6 @@ class ARHMM(object):
             data_set = [data_set]
 
         # Perform EM algorithm
-        tol = 0.01
-        max_iter = 100
         # TODO: invert for and while loop?
         trial = 0
         for _, _data_stream in enumerate(data_set):
