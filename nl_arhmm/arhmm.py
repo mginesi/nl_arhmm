@@ -20,7 +20,7 @@ class ARHMM(object):
         self.dynamics = dynamics
         self.sigma_set = sigmas
 
-    def compute_likelihood(self, data_stream): # FIXME
+    def compute_likelihood(self, data_stream):
         '''
         Compute the likelihood
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
@@ -29,7 +29,7 @@ class ARHMM(object):
         alpha_stream = self.compute_forward_var(data_stream)
         return self.give_likelihood(alpha_stream)
 
-    def give_likelihood(self, alpha_stream):
+    def give_likelihood(self, alpha_stream): # FIXME
         '''
         Compute the likelihood of the data
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
@@ -259,9 +259,12 @@ class ARHMM(object):
             new_init += normalize_vect(_gamma[0]) / K
         self.initial.density = normalize_vect(new_init)
 
-    def maximize_transition(self, gamma, xi): # FIXME
-        num = np.sum(xi, axis=0)
-        den = np.sum(gamma[:-1], axis=0)
+    def maximize_transition(self, gamma_set, xi_set):
+        num = np.zeros([self.n_modes, self.n_modes])
+        den = np.zeros(self.n_modes)
+        for k in range(len(gamma_set)):
+            num += np.sum(xi_set[k], axis=0)
+            den += np.sum(gamma_set[k][:-1], axis=0)
         self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
 
     def maximize_emissions(self, gamma, data_stream): # FIXME
