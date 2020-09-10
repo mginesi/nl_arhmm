@@ -252,8 +252,12 @@ class ARHMM(object):
             xi_set.append(xi)
         return xi_set
 
-    def maximize_initial(self, gamma): # FIXME
-        self.initial.density = normalize_vect(gamma[0])
+    def maximize_initial(self, gamma_set):
+        new_init = np.zeros(self.n_modes)
+        K = len(gamma_set)
+        for _, _gamma in enumerate(gamma_set):
+            new_init += normalize_vect(_gamma[0]) / K
+        self.initial.density = normalize_vect(new_init)
 
     def maximize_transition(self, gamma, xi): # FIXME
         num = np.sum(xi, axis=0)
