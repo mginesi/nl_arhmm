@@ -20,7 +20,7 @@ class ARHMM(object):
         self.dynamics = dynamics
         self.sigma_set = sigmas
 
-    def compute_likelihood(self, data_stream):
+    def compute_likelihood(self, data_stream): # FIXME
         '''
         Compute the likelihood
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
@@ -45,23 +45,19 @@ class ARHMM(object):
             data_set = [data_set]
 
         # Perform EM algorithm
-        # TODO: invert for and while loop?
-        trial = 0
-        for _, _data_stream in enumerate(data_set):
-            trial += 1
-            count = 0
-            new_lh = self.compute_likelihood(_data_stream)
-            print('Signal ' + str(trial) + ', step 0: LH = ' + str(new_lh))
-            convergence = False
-            while not convergence:
-                count += 1
-                old_lh = copy.deepcopy(new_lh)
-                new_lh = self.em_step(_data_stream)
-                convergence = (((new_lh - old_lh) / old_lh) < tol) or (count > max_iter)
-                if verbose:
-                    print('Signal ' + str(trial) + ', step ' + str(count) + ': LH = ' + str(new_lh))
+        count = 0
+        new_lh = self.compute_likelihood(data_set)
+        print('Step 0: LH = ' + str(new_lh))
+        convergence = False
+        while not convergence:
+            count += 1
+            old_lh = copy.deepcopy(new_lh)
+            new_lh = self.em_step(data_set)
+            convergence = (((new_lh - old_lh) / old_lh) < tol) or (count > max_iter)
+            if verbose:
+                print('Step ' + str(count) + ': LH = ' + str(new_lh))
 
-    def em_step(self, data_stream):
+    def em_step(self, data_stream): # FIXME
         '''
         Performs a step of the EM algorithm.
         '''
@@ -158,7 +154,7 @@ class ARHMM(object):
     #                              Expectation step functions                                 #
     # --------------------------------------------------------------------------------------- #
 
-    def compute_forward_var(self, data_stream):
+    def compute_forward_var(self, data_stream):  # FIXME
         '''
         Recursively compute the forward variables
           alpha(z_t) = p (y_0, .. , y_{t+1}, z_t | Theta^{old})
@@ -190,7 +186,7 @@ class ARHMM(object):
 
         return [alpha, c_rescale]
 
-    def compute_backward_var(self, data_stream, c_rescale_stream):
+    def compute_backward_var(self, data_stream, c_rescale_stream):  # FIXME
         '''
         Recursively compute the backward variables
           beta(z_t) = p (y_{t+2}, .. , y_T | y_0, .. , y_{t+1}, z_t, Theta^{old})
@@ -219,10 +215,10 @@ class ARHMM(object):
     #                              Maximization step functions                                #
     # --------------------------------------------------------------------------------------- #
 
-    def compute_gamma(self, alpha, beta):
+    def compute_gamma(self, alpha, beta): # FIXME
         return normalize_rows(alpha * beta)
 
-    def compute_xi(self, alpha, beta, data, c_rescale):
+    def compute_xi(self, alpha, beta, data, c_rescale): # FIXME
         T = np.shape(alpha)[0]
         xi = np.zeros([T - 1, self.n_modes, self.n_modes])
         p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
@@ -235,15 +231,15 @@ class ARHMM(object):
             xi[_t] = normalize_mtrx(xi[_t])
         return xi
 
-    def maximize_initial(self, gamma):
+    def maximize_initial(self, gamma): # FIXME
         self.initial.density = normalize_vect(gamma[0])
 
-    def maximize_transition(self, gamma, xi):
+    def maximize_transition(self, gamma, xi): # FIXME
         num = np.sum(xi, axis=0)
         den = np.sum(gamma[:-1], axis=0)
         self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
 
-    def maximize_emissions(self, gamma, data_stream):
+    def maximize_emissions(self, gamma, data_stream): # FIXME
         in_data = data_stream[:-1]
         out_data = data_stream[1:]
         T = len(out_data)
