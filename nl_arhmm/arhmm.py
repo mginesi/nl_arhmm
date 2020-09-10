@@ -163,13 +163,13 @@ class ARHMM(object):
           alpha(z_t) = p (y_0, .. , y_{t+1}, z_t | Theta^{old})
         '''
         # Initialization
-        T = len(data_stream) - 1
-        alpha = np.zeros([T, self.n_modes])
-        c_rescale = np.zeros(T)
         alpha_set = []
         c_rescale_set = []
 
         for _data in data_stream:
+            T = len(_data) - 1
+            alpha = np.zeros([T, self.n_modes])
+            c_rescale = np.zeros(T)
             # Basis of recursion
             for _m in range(self.n_modes):
                 alpha[0][_m] = normal_prob(_data[1],
@@ -304,12 +304,12 @@ class ARHMM(object):
         #         np.reshape(gamma_m, [T, 1, 1]) * np.matmul(phi_in_column, phi_in_row), 0)
         #     self.dynamics[_m].weights = np.dot(num, np.linalg.pinv(den))
         for _s in range(self.n_modes):
-            _omega = np.zeros([self.dynamics[0].weights.shape])
-            _sigma = np.zeros([self.sigma_set[0].shape])
-            num_sigma = np.zeros([self.sigma_set[0].shape])
+            _omega = np.zeros(self.dynamics[0].weights.shape)
+            _sigma = np.zeros(self.sigma_set[0].shape)
+            num_sigma = np.zeros(self.sigma_set[0].shape)
             den_sigma = np.zeros([1])
-            num_weights = np.zeros([self.n_dim, self.n_dim])
-            den_weights = np.zeros([self.n_dim, self.n_dim])
+            num_weights = np.zeros(self.dynamics[0].weights.shape)
+            den_weights = np.zeros([self.dynamics[0].weights.shape[1], self.dynamics[0].weights.shape[1]])
             for k, _data in enumerate(data_set):
                 in_data = _data[:-1]
                 out_data = _data[1:]
@@ -325,21 +325,21 @@ class ARHMM(object):
                 expected_out_data = []
                 for _, _in in enumerate(in_data):
                     expected_out_data.append(self.dynamics[_s].apply_vector_field(_in))
-                    expected_out_data = np.asarray(expected_out_data)
-                    err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
-                    err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
-                    cov_err = np.matmul(err, err_t)
-                    num_sigma += np.sum(cov_err * np.reshape(_gamma, [T, 1, 1]), 0)
-                    den_sigma += np.sum(_gamma)
+                expected_out_data = np.asarray(expected_out_data)
+                err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+                err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+                cov_err = np.matmul(err, err_t)
+                num_sigma += np.sum(cov_err * np.reshape(_gamma, [T, 1, 1]), 0)
+                den_sigma += np.sum(_gamma)
 
-                    # Dynamics' weight "update"
-                    out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
-                    phi_in_row = np.reshape(np.asarray(phi_in_data), [T, 1, dim_phi_data])
-                    phi_in_column = np.reshape(np.asarray(phi_in_data), [T, dim_phi_data, 1])
-                    num_weights += np.sum(
-                        np.reshape(_gamma, [T, 1, 1]) * np.matmul(out_data_3d, phi_in_row), 0)
-                    den_weights += np.sum(
-                        np.reshape(_gamma, [T, 1, 1]) * np.matmul(phi_in_column, phi_in_row), 0)
+                # Dynamics' weight "update"
+                out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+                phi_in_row = np.reshape(np.asarray(phi_in_data), [T, 1, dim_phi_data])
+                phi_in_column = np.reshape(np.asarray(phi_in_data), [T, dim_phi_data, 1])
+                num_weights += np.sum(
+                    np.reshape(_gamma, [T, 1, 1]) * np.matmul(out_data_3d, phi_in_row), 0)
+                den_weights += np.sum(
+                    np.reshape(_gamma, [T, 1, 1]) * np.matmul(phi_in_column, phi_in_row), 0)
             self.sigma_set[_s] = num_sigma / den_sigma
             self.dynamics[_s].weights = np.dot(num_weights, np.linalg.pinv(den_weights))
 
