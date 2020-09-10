@@ -29,12 +29,15 @@ class ARHMM(object):
         alpha_stream = self.compute_forward_var(data_stream)
         return self.give_likelihood(alpha_stream)
 
-    def give_likelihood(self, alpha_stream): # FIXME
+    def give_likelihood(self, alpha_stream):
         '''
         Compute the likelihood of the data
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
         '''
-        return np.sum(alpha_stream[-1])
+        lkl = 0
+        for _alpha in alpha_stream:
+            lkl += np.log(np.sum(_alpha[-1]))
+        return np.exp(lkl)
 
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
         '''
@@ -232,7 +235,7 @@ class ARHMM(object):
             gamma_set.append(normalize_rows(alpha_set[k] * beta_set[k]))
         return gamma_set
 
-    def compute_xi(self, alpha_set, beta_set, data_dtream, c_rescale_set): # FIXME
+    def compute_xi(self, alpha_set, beta_set, data_dtream, c_rescale_set):
         xi_set = []
         for k in range(len(alpha_set)):
             alpha = alpha_set[k]
@@ -267,7 +270,7 @@ class ARHMM(object):
             den += np.sum(gamma_set[k][:-1], axis=0)
         self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
 
-    def maximize_emissions(self, gamma_set, data_set): # FIXME
+    def maximize_emissions(self, gamma_set, data_set):
         # in_data = data_stream[:-1]
         # out_data = data_stream[1:]
         # T = len(out_data)
