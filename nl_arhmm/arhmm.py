@@ -57,7 +57,7 @@ class ARHMM(object):
             if verbose:
                 print('Step ' + str(count) + ': LH = ' + str(new_lh))
 
-    def em_step(self, data_stream): # FIXME
+    def em_step(self, data_stream):
         '''
         Performs a step of the EM algorithm.
         '''
@@ -154,7 +154,7 @@ class ARHMM(object):
     #                              Expectation step functions                                 #
     # --------------------------------------------------------------------------------------- #
 
-    def compute_forward_var(self, data_stream):  # FIXME
+    def compute_forward_var(self, data_stream):
         '''
         Recursively compute the forward variables
           alpha(z_t) = p (y_0, .. , y_{t+1}, z_t | Theta^{old})
@@ -163,73 +163,94 @@ class ARHMM(object):
         T = len(data_stream) - 1
         alpha = np.zeros([T, self.n_modes])
         c_rescale = np.zeros(T)
+        alpha_set = []
+        c_rescale_set = []
 
-        # Basis of recursion
-        for _m in range(self.n_modes):
-            alpha[0][_m] = normal_prob(data_stream[1],
-                self.dynamics[_m].apply_vector_field(data_stream[0]), self.sigma_set[_m]) * \
-                self.initial.density[_m]
-        c_rescale[0] = np.sum(alpha[0])
-        alpha[0] /= c_rescale[0]
-
-        # Recursion
-        p_future = np.zeros(self.n_modes) # initialization
-        for _t in range(1, T):
-            # Computing p(y_{t+1} | y_t, z_t)
+        for _data in data_stream:
+            # Basis of recursion
             for _m in range(self.n_modes):
-                p_future[_m] = normal_prob(data_stream[_t+1],
-                    self.dynamics[_m].apply_vector_field(data_stream[_t]), self.sigma_set[_m])
-            alpha[_t] = p_future * np.dot(np.transpose(self.transition.trans_mtrx),
-                alpha[_t - 1])
-            c_rescale[_t] = np.sum(alpha[_t])
-            alpha[_t] /= c_rescale[_t]
+                alpha[0][_m] = normal_prob(_data[1],
+                    self.dynamics[_m].apply_vector_field(_data[0]), self.sigma_set[_m]) * \
+                    self.initial.density[_m]
+            c_rescale[0] = np.sum(alpha[0])
+            alpha[0] /= c_rescale[0]
 
-        return [alpha, c_rescale]
+            # Recursion
+            p_future = np.zeros(self.n_modes) # initialization
+            for _t in range(1, T):
+                # Computing p(y_{t+1} | y_t, z_t)
+                for _m in range(self.n_modes):
+                    p_future[_m] = normal_prob(_data[_t+1],
+                        self.dynamics[_m].apply_vector_field(_data[_t]), self.sigma_set[_m])
+                alpha[_t] = p_future * np.dot(np.transpose(self.transition.trans_mtrx),
+                    alpha[_t - 1])
+                c_rescale[_t] = np.sum(alpha[_t])
+                alpha[_t] /= c_rescale[_t]
+            alpha_set.append(alpha)
+            c_rescale_set.append(c_rescale)
 
-    def compute_backward_var(self, data_stream, c_rescale_stream):  # FIXME
+        return [alpha_set, c_rescale_set]
+
+    def compute_backward_var(self, data_stream, c_rescale_stream):
         '''
         Recursively compute the backward variables
           beta(z_t) = p (y_{t+2}, .. , y_T | y_0, .. , y_{t+1}, z_t, Theta^{old})
         '''
-        # Initialization
-        T = len(data_stream) - 1
-        beta = np.zeros([T, self.n_modes])
 
-        # Basis of recursion
-        beta[T - 1] = np.ones(self.n_modes)
+        beta_set = []
+        count_data = 0
+        for _data in data_stream:
+            # Initialization
+            T = len(_data) - 1
+            beta = np.zeros([T, self.n_modes])
 
-        # Recursion
-        p_future = np.zeros(self.n_modes) # initialization
-        for _t in range(T - 2, -1, -1):
-            # Computing p(y_{t+2} | y_{t+1}, z_{t+1})
-            for _m in range(self.n_modes):
-                p_future[_m] = normal_prob(data_stream[_t + 2],
-                    self.dynamics[_m].apply_vector_field(data_stream[_t + 1]),
-                    self.sigma_set[_m])
-            beta[_t] = np.dot(self.transition.trans_mtrx,
-                beta[_t + 1] * p_future) / c_rescale_stream[_t + 1]
+            # Basis of recursion
+            beta[T - 1] = np.ones(self.n_modes)
 
-        return beta
+            # Recursion
+            p_future = np.zeros(self.n_modes) # initialization
+            for _t in range(T - 2, -1, -1):
+                # Computing p(y_{t+2} | y_{t+1}, z_{t+1})
+                for _m in range(self.n_modes):
+                    p_future[_m] = normal_prob(_data[_t + 2],
+                        self.dynamics[_m].apply_vector_field(_data[_t + 1]),
+                        self.sigma_set[_m])
+                beta[_t] = np.dot(self.transition.trans_mtrx,
+                    beta[_t + 1] * p_future) / c_rescale_stream[count_data][_t + 1]
+            count_data += 1
+            beta_set.append(beta)
+
+        return beta_set
 
     # --------------------------------------------------------------------------------------- #
     #                              Maximization step functions                                #
     # --------------------------------------------------------------------------------------- #
 
-    def compute_gamma(self, alpha, beta): # FIXME
-        return normalize_rows(alpha * beta)
+    def compute_gamma(self, alpha_set, beta_set):
+        gamma_set = []
+        for k in range(len(alpha_set)):
+            gamma_set.append(normalize_rows(alpha_set[k] * beta_set[k]))
+        return gamma_set
 
-    def compute_xi(self, alpha, beta, data, c_rescale): # FIXME
-        T = np.shape(alpha)[0]
-        xi = np.zeros([T - 1, self.n_modes, self.n_modes])
-        p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
-        for _t in range(T - 1):
-            for _m in range(self.n_modes):
-                p_future[_m] = normal_prob(data[_t + 2],
-                    self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
-            xi[_t] = self.transition.trans_mtrx * (beta[_t + 1] * p_future) * \
-                np.reshape(alpha[_t], [self.n_modes, 1]) / c_rescale[_t + 1]
-            xi[_t] = normalize_mtrx(xi[_t])
-        return xi
+    def compute_xi(self, alpha_set, beta_set, data_dtream, c_rescale_set): # FIXME
+        xi_set = []
+        for k in range(len(alpha_set)):
+            alpha = alpha_set[k]
+            beta = beta_set[k]
+            data = data_dtream[k]
+            c_rescale = c_rescale_set[k]
+            T = np.shape(alpha)[0]
+            xi = np.zeros([T - 1, self.n_modes, self.n_modes])
+            p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
+            for _t in range(T - 1):
+                for _m in range(self.n_modes):
+                    p_future[_m] = normal_prob(data[_t + 2],
+                        self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
+                xi[_t] = self.transition.trans_mtrx * (beta[_t + 1] * p_future) * \
+                    np.reshape(alpha[_t], [self.n_modes, 1]) / c_rescale[_t + 1]
+                xi[_t] = normalize_mtrx(xi[_t])
+            xi_set.append(xi)
+        return xi_set
 
     def maximize_initial(self, gamma): # FIXME
         self.initial.density = normalize_vect(gamma[0])
