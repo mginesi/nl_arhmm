@@ -63,6 +63,7 @@ class Linear_Dynamic(object):
         Class encoding the dynamic.
         '''
         self.n_dim = copy.deepcopy(n_dim)
+        self.n_basis = self.n_dim + 1
         if weights is None:
             weights = np.zeros([self.n_dim, self.n_dim + 1])
         self.weights = copy.deepcopy(weights)
