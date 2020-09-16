@@ -30,17 +30,16 @@ class ARHMM(object):
         '''
         pool = multiprocessing.Pool()
         forward_stream = pool.map(self.compute_forward_var, data_stream)
-        alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
-        return self.give_likelihood(alpha_stream)
+        c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
+        return self.give_likelihood(c_stream)
 
-    def give_likelihood(self, alpha_stream):
+    def give_likelihood(self, c_stream):
         '''
         Compute the likelihood of the data
-          p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
         '''
         lkl = 0
-        for _alpha in alpha_stream:
-            lkl += np.log(np.sum(_alpha[-1]))
+        for _c in c_stream:
+            lkl += np.sum(np.log(_c))
         return np.exp(lkl)
 
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
