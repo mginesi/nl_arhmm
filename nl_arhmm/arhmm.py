@@ -22,7 +22,7 @@ class ARHMM(object):
         self.dynamics = dynamics
         self.sigma_set = sigmas
 
-    def compute_likelihood(self, data_stream):
+    def compute_log_likelihood(self, data_stream):
         '''
         Compute the likelihood
           p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
@@ -31,16 +31,16 @@ class ARHMM(object):
         pool = multiprocessing.Pool()
         forward_stream = pool.map(self.compute_forward_var, data_stream)
         c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
-        return self.give_likelihood(c_stream)
+        return self.give_log_likelihood(c_stream)
 
-    def give_likelihood(self, c_stream):
+    def give_log_likelihood(self, c_stream):
         '''
         Compute the likelihood of the data
         '''
         lkl = 0
         for _c in c_stream:
             lkl += np.sum(np.log(_c))
-        return np.exp(lkl)
+        return lkl
 
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
         '''
@@ -52,7 +52,7 @@ class ARHMM(object):
 
         # Perform EM algorithm
         count = 0
-        new_lh = self.compute_likelihood(data_set)
+        new_lh = self.compute_log_likelihood(data_set)
         print('Step 0: LH = ' + str(new_lh))
         convergence = False
         while not convergence:
@@ -87,7 +87,7 @@ class ARHMM(object):
         forward_stream = pool.map(self.compute_forward_var, data_stream)
         alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
 
-        return self.give_likelihood(alpha_stream)
+        return self.give_log_likelihood(alpha_stream)
 
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
