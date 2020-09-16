@@ -59,7 +59,7 @@ class ARHMM(object):
             count += 1
             old_lh = copy.deepcopy(new_lh)
             new_lh = self.em_step(data_set)
-            convergence = (((new_lh - old_lh) / old_lh) < tol) or (count > max_iter)
+            convergence = ((np.abs((new_lh - old_lh) / old_lh) < tol)) or (count > max_iter)
             if verbose:
                 print('Step ' + str(count) + ': LH = ' + str(new_lh))
 
