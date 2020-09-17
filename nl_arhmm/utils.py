@@ -23,7 +23,7 @@ def log_normal_prob(y, mu, sigma):
     Return the normal pdf with mean mu and variance sigma evaluated in y.
     '''
     if np.isscalar(mu) and np.isscalar(sigma) and np.isscalar(y):
-        return -0.918938533204673 - 0.5 * np.log(sigma) - 0.5 * (y - mu) * (y - mu) / sigma
+        return -0.9189385332046727 - 0.5 * np.log(sigma) - 0.5 * (y - mu) * (y - mu) / sigma
     else:
         # Check number of dimensions
         if not (np.ndim(mu) == 1 and np.ndim(sigma) == 2 and np.ndim(y) == 1):
@@ -33,7 +33,7 @@ def log_normal_prob(y, mu, sigma):
             raise ValueError('sigma must be a square matrix with number or rows equals to mu and y')
         sigma_inv = np.linalg.pinv(sigma)
         det_sigma = np.linalg.det(sigma)
-        return - k * 0.918938533204673 - 0.5 * np.log(det_sigma) - 0.5 * \
+        return - k * 0.9189385332046727 - 0.5 * np.log(det_sigma) - 0.5 * \
             np.dot(y - mu, np.dot(sigma_inv, y - mu))
 
 ## ----------------------------------------------------------------------------------------- ##
