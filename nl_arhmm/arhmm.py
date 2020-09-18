@@ -172,7 +172,7 @@ class ARHMM(object):
         '''
         Recursively compute the (logarithm of) scaled forward variables and the scaling factors
           alpha(z_t) = p (z_t | y_0, .. , y_{t+1}, Theta^{old})
-          c_t = p (y_t | y_0, ..., y_{t-1}, Theta^{\old})
+          c_t = p (y_t | y_0, ..., y_{t-1}, Theta^{old})
         '''
         T = len(_data) - 1
         log_alpha = np.zeros([T, self.n_modes])
