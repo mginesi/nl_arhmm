@@ -13,6 +13,7 @@ class Initial(object):
         density = np.maximum(density, 0.0)
         density /= np.sum(density)
         self.density = density
+        self.loginit = np.log(self.density)
 
     def sample(self):
         # Method to sample an initial state from the density function

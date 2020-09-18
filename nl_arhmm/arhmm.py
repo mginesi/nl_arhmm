@@ -19,9 +19,7 @@ class ARHMM(object):
         self.n_dim = n_dim
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
-        self.loginit = np.log(self.initial,density)
         self.transition = Transition(self.n_modes)
-        self.logtrans = np.log(self.transition.trans_mtrx)
         self.dynamics = dynamics
         self.sigma_set = sigmas
 
@@ -36,13 +34,13 @@ class ARHMM(object):
         c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
         return self.give_log_likelihood(c_stream)
 
-    def give_log_likelihood(self, c_stream):
+    def give_log_likelihood(self, log_c_stream):
         '''
         Compute the likelihood of the data
         '''
         lkl = 0
-        for _c in c_stream:
-            lkl += np.sum(np.log(_c))
+        for _log_c in log_c_stream:
+            lkl += np.sum(_log_c)
         return lkl
 
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
@@ -85,6 +83,9 @@ class ARHMM(object):
         self.maximize_initial(gamma_stream)
         self.maximize_transition(gamma_stream, xi_stream)
         self.maximize_emissions(gamma_stream, data_stream)
+        
+        self.initial.loginit = np.log(self.initial.density)
+        self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
         # This re-computation is needed to compute the new likelihood
         forward_stream = pool.map(self.compute_forward_var, data_stream)
@@ -192,7 +193,7 @@ class ARHMM(object):
                 log_p_future[_m] = log_normal_prob(_data[_t+1],
                     self.dynamics[_m].apply_vector_field(_data[_t]), self.sigma_set[_m])
             log_alpha[_t] = log_p_future + \
-                logsumexp(log_alpha[_t - 1] + np.transpose(self.logtrans), axis = 1)
+                logsumexp(log_alpha[_t - 1] + np.transpose(self.transition.logtrans), axis = 1)
             log_c_rescale[_t] = logsumexp(log_alpha[_t])
             log_alpha[_t] -= log_c_rescale[_t]
 
@@ -200,51 +201,50 @@ class ARHMM(object):
 
     def compute_backward_var(self, _in):
         '''
-        Recursively compute the backward variables
-          beta(z_t) = p (y_{t+2}, .. , y_T | y_0, .. , y_{t+1}, z_t, Theta^{old})
+        Recursively compute the (logarithm of the) scaled backward variables
+                          p (y_{t+1}, .. , y_T | y_t, z_t, Theta^{old})
+          beta(z_t) = ----------------------------------------------------
+                       p (y_{t+1}, .. , y_T | y_0, ..., y_t, Theta^{old})
         '''
         _data = _in[0]
-        _c_rescale = _in[1]
+        _log_c_rescale = _in[1]
         # Initialization
         T = len(_data) - 1
-        beta = np.zeros([T, self.n_modes])
-
-        # Basis of recursion
-        beta[T - 1] = np.ones(self.n_modes)
+        log_beta = np.zeros([T, self.n_modes])
 
         # Recursion
-        p_future = np.zeros(self.n_modes) # initialization
+        log_p_future = np.zeros(self.n_modes) # initialization
         for _t in range(T - 2, -1, -1):
             # Computing p(y_{t+2} | y_{t+1}, z_{t+1})
             for _m in range(self.n_modes):
-                p_future[_m] = normal_prob(_data[_t + 2],
+                log_p_future[_m] = log_normal_prob(_data[_t + 2],
                     self.dynamics[_m].apply_vector_field(_data[_t + 1]),
                     self.sigma_set[_m])
-            beta[_t] = np.dot(self.transition.trans_mtrx,
-                beta[_t + 1] * p_future) / _c_rescale[_t + 1]
+            log_beta[_t] = logsumexp(log_beta[_t + 1] + log_p_future + self.transition.logtrans,
+                                     axis = 1) - _log_c_rescale[_t + 1]
 
-        return beta
+        return log_beta
 
     def compute_gamma(self, _in):
-        _alpha = _in[0]
-        _beta = _in[1]
-        return normalize_rows(_alpha * _beta)
+        _log_alpha = _in[0]
+        _log_beta = _in[1]
+        return normalize_rows(np.exp(_log_alpha + _log_beta))
 
     def compute_xi(self, _in):
-        alpha = _in[0]
-        beta = _in[1]
+        log_alpha = _in[0]
+        log_beta = _in[1]
         data = _in[2]
-        c_rescale = _in[3]
-        T = np.shape(alpha)[0]
+        log_c_rescale = _in[3]
+        T = np.shape(log_alpha)[0]
         _xi = np.zeros([T - 1, self.n_modes, self.n_modes])
-        p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
+        log_p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
         for _t in range(T - 1):
             for _m in range(self.n_modes):
-                p_future[_m] = normal_prob(data[_t + 2],
+                log_p_future[_m] = log_normal_prob(data[_t + 2],
                     self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
-            _xi[_t] = self.transition.trans_mtrx * (beta[_t + 1] * p_future) * \
-                np.reshape(alpha[_t], [self.n_modes, 1]) / c_rescale[_t + 1]
-            _xi[_t] = normalize_mtrx(_xi[_t])
+            _xi[_t] = (log_alpha[_t] + self.transition.logtrans.transpose()).transpose() + \
+                log_p_future + log_beta[_t + 1] - log_c_rescale[_t + 1]
+            _xi[_t] = normalize_mtrx(np.exp(_xi[_t]))
         return _xi
 
     # --------------------------------------------------------------------------------------- #

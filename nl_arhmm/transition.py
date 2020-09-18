@@ -14,6 +14,7 @@ class Transition(object):
         trans_mtrx = np.maximum(trans_mtrx, 0.0)
         trans_mtrx /= np.reshape(np.sum(trans_mtrx, 1), [self.n_modes, 1])
         self.trans_mtrx = trans_mtrx
+        self.logtrans = np.log(trans_mtrx)
 
     def sample(self, st):
         # Method to sample the next state given the actual state
