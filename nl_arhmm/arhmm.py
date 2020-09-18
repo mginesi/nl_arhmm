@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import logsumexp
 import copy
 
 import multiprocessing
@@ -7,7 +8,7 @@ from nl_arhmm.initial import Initial
 from nl_arhmm.transition import Transition
 from nl_arhmm.dynamic import GRBF_Dynamic
 from nl_arhmm.dynamic import Linear_Dynamic
-from nl_arhmm.utils import normal_prob, normalize_vect, normalize_rows, normalize_mtrx
+from nl_arhmm.utils import normal_prob, log_normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
 class ARHMM(object):
 
@@ -18,7 +19,9 @@ class ARHMM(object):
         self.n_dim = n_dim
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
+        self.loginit = np.log(self.initial,density)
         self.transition = Transition(self.n_modes)
+        self.logtrans = np.log(self.transition.trans_mtrx)
         self.dynamics = dynamics
         self.sigma_set = sigmas
 
@@ -166,33 +169,34 @@ class ARHMM(object):
 
     def compute_forward_var(self, _data):
         '''
-        Recursively compute the forward variables
-          alpha(z_t) = p (y_0, .. , y_{t+1}, z_t | Theta^{old})
+        Recursively compute the (logarithm of) scaled forward variables and the scaling factors
+          alpha(z_t) = p (z_t | y_0, .. , y_{t+1}, Theta^{old})
+          c_t = p (y_t | y_0, ..., y_{t-1}, Theta^{\old})
         '''
         T = len(_data) - 1
-        alpha = np.zeros([T, self.n_modes])
-        c_rescale = np.zeros(T)
+        log_alpha = np.zeros([T, self.n_modes])
+        log_c_rescale = np.zeros(T)
         # Basis of recursion
         for _m in range(self.n_modes):
-            alpha[0][_m] = normal_prob(_data[1],
-                self.dynamics[_m].apply_vector_field(_data[0]), self.sigma_set[_m]) * \
+            log_alpha[0][_m] = log_normal_prob(_data[1],
+                self.dynamics[_m].apply_vector_field(_data[0]), self.sigma_set[_m]) + \
                 self.initial.density[_m]
-        c_rescale[0] = np.sum(alpha[0])
-        alpha[0] /= c_rescale[0]
+        log_c_rescale[0] = logsumexp(log_alpha[0])
+        log_alpha[0] -= log_c_rescale[0]
 
         # Recursion
-        p_future = np.zeros(self.n_modes) # initialization
+        log_p_future = np.zeros(self.n_modes) # initialization
         for _t in range(1, T):
             # Computing p(y_{t+1} | y_t, z_t)
             for _m in range(self.n_modes):
-                p_future[_m] = normal_prob(_data[_t+1],
+                log_p_future[_m] = log_normal_prob(_data[_t+1],
                     self.dynamics[_m].apply_vector_field(_data[_t]), self.sigma_set[_m])
-            alpha[_t] = p_future * np.dot(np.transpose(self.transition.trans_mtrx),
-                alpha[_t - 1])
-            c_rescale[_t] = np.sum(alpha[_t])
-            alpha[_t] /= c_rescale[_t]
+            log_alpha[_t] = log_p_future + \
+                logsumexp(log_alpha[_t - 1] + np.transpose(self.logtrans), axis = 1)
+            log_c_rescale[_t] = logsumexp(log_alpha[_t])
+            log_alpha[_t] -= log_c_rescale[_t]
 
-        return [alpha, c_rescale]
+        return [log_alpha, log_c_rescale]
 
     def compute_backward_var(self, _in):
         '''
