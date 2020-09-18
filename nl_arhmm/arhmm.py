@@ -89,7 +89,7 @@ class ARHMM(object):
 
         # This re-computation is needed to compute the new likelihood
         forward_stream = pool.map(self.compute_forward_var, data_stream)
-        alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
+        alpha_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
 
         return self.give_log_likelihood(alpha_stream)
 
