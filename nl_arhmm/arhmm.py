@@ -43,6 +43,55 @@ class ARHMM(object):
             lkl += np.sum(_log_c)
         return lkl
 
+    def initialize(self, data_set, use_pos=True, use_diff=True, **kwargs):
+        '''
+        Estimate the initial guess of the parameters.
+        '''
+
+        # Preliminary data fit with k-Means
+        from sklearn.cluster import KMeans
+        times = np.array([len(_data) for _data in data_set])
+        times = list(np.append(0, np.cumsum(times) - 1))
+
+        x_diff = [np.diff(_data, axis=0) for _data in data_set]
+        # Last two "velocities" are the same
+        x_diff = [np.vstack((_x_diff, _x_diff[-1])) for _x_diff in x_diff]
+        x_diff_all = np.vstack(x_diff)
+        data_complete = np.hstack((np.vstack(data_set), x_diff_all))
+        km = KMeans(self.n_modes)
+        if use_pos and use_diff:
+            data_to_cluster = data_complete
+        elif use_pos and not use_diff:
+            data_to_cluster = data_complete[:, :self.n_dim]
+        elif not use_pos and use_diff:
+            data_to_cluster = data_complete[:, self.n_dim:]
+        km.fit(data_to_cluster)
+
+        # First estimate of dynamics
+        for _m in range(self.n_modes):
+            input_set = data_complete[np.where(km.labels_ == _m)[0], self.n_dim:]
+            output_set = input_set + data_complete[np.where(km.labels_ == _m)[0], :self.n_dim]
+            self.dynamics[_m].learn_vector_field(input_set, output_set)
+            self.sigma_set[_m] = self.dynamics[_m].estimate_cov_mtrx(input_set, output_set)
+
+        # Estimate of initial density
+        _init = np.zeros(self.n_modes)
+        for _m in range(self.n_modes):
+            _init[_m] = list(km.labels_[times]).count(_m)
+        _init += 1 # to avoid null components
+        self.initial.density = normalize_vect(_init)
+        self.initial.logint = np.log(self.initial.density)
+
+        # Estimate of transition probability
+        trans = [[km.labels_[t], km.labels_[t+1]] for t in range(len(km.labels_) - 1)]
+        _T = np.zeros([self.n_modes, self.n_modes])
+        for _m in range(self.n_modes):
+            for _n in range(self.n_modes):
+                _T[_m, _n] = trans.count([_m, _n])
+        _T += 1 # to avoid null components
+        self.transition.trans_mtrx = normalize_rows(_T)
+        self.transition.logtrans = np.log(self.transition.trans_mtrx)
+
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
         '''
         Perform the EM algorithm.
