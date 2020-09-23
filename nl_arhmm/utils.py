@@ -2,7 +2,7 @@ import numpy as np
 
 def normal_prob(y, mu, sigma):
     '''
-    Return the normal pdf with mean mu and variance sigma evaluated in y.
+    Return the normal pdf with mean mu and covariance matrix sigma evaluated in y.
     '''
     if np.isscalar(mu) and np.isscalar(sigma) and np.isscalar(y):
         return 0.3989422804014327 / np.sqrt(sigma) * np.exp(-0.5 * (y - mu) * (y - mu) / sigma)
@@ -20,7 +20,7 @@ def normal_prob(y, mu, sigma):
 
 def log_normal_prob(y, mu, sigma):
     '''
-    Return the normal pdf with mean mu and variance sigma evaluated in y.
+    Return the normal pdf with mean mu and covariance matrix sigma evaluated in y.
     '''
     if np.isscalar(mu) and np.isscalar(sigma) and np.isscalar(y):
         return -0.9189385332046727 - 0.5 * np.log(sigma) - 0.5 * (y - mu) * (y - mu) / sigma
