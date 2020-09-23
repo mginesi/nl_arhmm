@@ -64,7 +64,7 @@ model.dynamics[1].weights = np.random.rand(model.dynamics[1].weights.shape[0],
 model.dynamics[0].weights /= 10
 model.dynamics[1].weights /= 10
 
-T = 1000
+T = 100
 sigma = np.array([[1, 0],
                   [0, 1]])
 state = []

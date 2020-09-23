@@ -26,7 +26,7 @@ class ARHMM(object):
     def compute_log_likelihood(self, data_stream):
         '''
         Compute the likelihood
-          p ( X | Theta ) = sum_{Z} p ( X | Z , Theta )
+          p ( X | Theta ) = p( X1 | Theta) p( X2 | Theta) ... p( Xk | Theta)
         by scratch.
         '''
         pool = multiprocessing.Pool()
@@ -230,7 +230,7 @@ class ARHMM(object):
         for _m in range(self.n_modes):
             log_alpha[0][_m] = log_normal_prob(_data[1],
                 self.dynamics[_m].apply_vector_field(_data[0]), self.sigma_set[_m]) + \
-                self.initial.density[_m]
+                self.initial.loginit[_m]
         log_c_rescale[0] = logsumexp(log_alpha[0])
         log_alpha[0] -= log_c_rescale[0]
 
