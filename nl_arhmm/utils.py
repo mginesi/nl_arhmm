@@ -5,7 +5,7 @@ def normal_prob(y, mu, sigma):
     Return the normal pdf with mean mu and variance sigma evaluated in y.
     '''
     if np.isscalar(mu) and np.isscalar(sigma) and np.isscalar(y):
-        return 0.3989422804014327 / sigma * np.exp(-0.5 * (y - mu) * (y - mu) / sigma / sigma)
+        return 0.3989422804014327 / np.sqrt(sigma) * np.exp(-0.5 * (y - mu) * (y - mu) / sigma)
     else:
         # Check number of dimensions
         if not (np.ndim(mu) == 1 and np.ndim(sigma) == 2 and np.ndim(y) == 1):
