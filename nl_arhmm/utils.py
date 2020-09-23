@@ -13,9 +13,10 @@ def normal_prob(y, mu, sigma):
         k = np.shape(mu)[0]
         if not (np.shape(sigma) == (k, k)):
             raise ValueError('sigma must be a square matrix with number or rows equals to mu and y')
+        sigma_inv = np.linalg.pinv(sigma)
         det_sigma = np.linalg.det(sigma)
         const = (0.3989422804014327 ** k) / np.sqrt(det_sigma)
-        return const * np.exp(-0.5 * np.dot(y - mu, np.lstsq(sigma, y - mu)))
+        return const * np.exp(-0.5 * np.dot(y - mu, np.dot(sigma_inv, y - mu)))
 
 def log_normal_prob(y, mu, sigma):
     '''
@@ -30,9 +31,10 @@ def log_normal_prob(y, mu, sigma):
         k = np.shape(mu)[0]
         if not (np.shape(sigma) == (k, k)):
             raise ValueError('sigma must be a square matrix with number or rows equals to mu and y')
+        sigma_inv = np.linalg.pinv(sigma)
         det_sigma = np.linalg.det(sigma)
         return - k * 0.9189385332046727 - 0.5 * np.log(det_sigma) - 0.5 * \
-            np.dot(y - mu, np.lstsq(sigma, y - mu))
+            np.dot(y - mu, np.dot(sigma_inv, y - mu))
 
 ## ----------------------------------------------------------------------------------------- ##
 ##  WARNING: This are not actual normalization, the output will always sum to 1, and not     ##
