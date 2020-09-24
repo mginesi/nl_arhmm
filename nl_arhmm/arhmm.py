@@ -132,9 +132,6 @@ class ARHMM(object):
         self.maximize_initial(gamma_stream)
         self.maximize_transition(gamma_stream, xi_stream)
         self.maximize_emissions(gamma_stream, data_stream)
-        
-        self.initial.loginit = np.log(self.initial.density)
-        self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
         # This re-computation is needed to compute the new likelihood
         forward_stream = pool.map(self.compute_forward_var, data_stream)
@@ -305,8 +302,9 @@ class ARHMM(object):
         new_init = np.zeros(self.n_modes)
         K = len(gamma_set)
         for _, _gamma in enumerate(gamma_set):
-            new_init += normalize_vect(_gamma[0]) / K
+            new_init += _gamma[0] / K
         self.initial.density = normalize_vect(new_init)
+        self.initial.loginit = np.log(self.initial.density)
 
     def maximize_transition(self, gamma_set, xi_set):
         num = np.zeros([self.n_modes, self.n_modes])
@@ -315,6 +313,7 @@ class ARHMM(object):
             num += np.sum(xi_set[k], axis=0)
             den += np.sum(gamma_set[k][:-1], axis=0)
         self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
+        self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
     def maximize_emissions_components(self,_in):
         gamma = _in[0]
