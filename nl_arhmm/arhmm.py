@@ -143,6 +143,10 @@ class ARHMM(object):
         mu = self.dynamics[mode].apply_vector_field(y0)
         return normal_prob(y1, mu, self.sigma_set[mode])
 
+    def give_log_prob_of_next_step(self, y0, y1, mode):
+        mu = self.dynamics[mode].apply_vector_field(y0)
+        return log_normal_prob(y1, mu, self.sigma_set[mode])
+
     def set_up_dynamic_guess(self, in_data, out_data):
         '''
         Set up a guess for the weights by dividing the input and output set in m equal
@@ -186,16 +190,16 @@ class ARHMM(object):
         
         # Compute the basis of recursion
         for _s in range(self.n_modes):
-            T_1[0][_s] = self.give_prob_of_next_step(data_stream[0], data_stream[1], _s) * \
-                self.initial.density[_s]
+            T_1[0][_s] = self.give_log_prob_of_next_step(data_stream[0], data_stream[1], _s) + \
+                self.initial.loginit[_s]
             # T_2[0] = 0.0
 
         # Recursion over time
         # FIXME: is it possible to vectorize something?
         for _t in range(1, T):
             for _s in range(self.n_modes):
-                to_maximize = T_1[_t - 1] * self.transition.trans_mtrx[:, _s] * \
-                    self.give_prob_of_next_step(data_stream[_t], data_stream[_t + 1], _s)
+                to_maximize = T_1[_t - 1] + self.transition.logtrans[:, _s] + \
+                    self.give_log_prob_of_next_step(data_stream[_t], data_stream[_t + 1], _s)
                 _max = np.max(to_maximize)
                 _argmax = np.where(to_maximize == _max)[0][0]
                 T_1[_t, _s] = copy.deepcopy(_max)
@@ -206,7 +210,7 @@ class ARHMM(object):
         max_T = np.max(T_1[T - 1])
         argmax_T = np.where(T_1[T - 1] == max_T)[0][0]
         z[-1] = int(argmax_T)
-        for _t in range(T - 1, 1, -1):
+        for _t in range(T - 1, 0, -1):
             z[_t - 1] = T_2[_t, int(z[_t])]
         return z
 
