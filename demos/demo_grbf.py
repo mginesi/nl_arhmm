@@ -52,17 +52,7 @@ dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 
 # Creating the NL - ARHMM
 model = GRBF_ARHMM(2, 2, [centers, centers], [0.5 * np.ones(24), 0.5 * np.ones(24)],
-                 [dyn_st.weights, dyn_ol.weights], [np.eye(2), np.eye(2)])
-
-# Change the weights
-# model.dynamics[0].weights *= 2 * np.random.rand()
-# model.dynamics[1].weights *= 2 * np.random.rand()
-model.dynamics[0].weights = np.random.rand(model.dynamics[0].weights.shape[0],
-                                           model.dynamics[0].weights.shape[1])
-model.dynamics[1].weights = np.random.rand(model.dynamics[1].weights.shape[0],
-                                           model.dynamics[1].weights.shape[1])
-model.dynamics[0].weights /= 10
-model.dynamics[1].weights /= 10
+                 [dyn_st.weights, dyn_ol.weights], [0.05 * np.eye(2), 0.05 * np.eye(2)])
 
 T = 100
 sigma = np.array([[1, 0],
@@ -70,23 +60,27 @@ sigma = np.array([[1, 0],
 state = []
 mode_true = []
 num_signal = 20
-print(model.transition.trans_mtrx)
 for _ in range(num_signal):
     _rho = np.random.rand()
     _theta = np.random.rand() * 2.0 * np.pi
     _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
-    [_state, _mode_true] = model.simulate(_in, T, sigma)
+    [_state, _mode_true] = model.simulate(_in, T) #, sigma)
     state.append(_state)
     mode_true.append(_mode_true)
+
+
+mode_inferred = model.viterbi(state[0])
+
 model.initialize(state, use_pos=False)
 model.em_algorithm(state)
-print(model.transition.trans_mtrx)
 
-mode_inferred = model.viterbi(state[-1])
+mode_inferred_em = model.viterbi(state[0])
 
 plt.figure()
-plt.subplot(211)
+plt.subplot(311)
 plt.imshow(np.array([mode_true[0]]), aspect='auto')
-plt.subplot(212)
+plt.subplot(312)
 plt.imshow(np.array([mode_inferred]), aspect='auto')
+plt.subplot(313)
+plt.imshow(np.array([mode_inferred_em]), aspect='auto')
 plt.show()
