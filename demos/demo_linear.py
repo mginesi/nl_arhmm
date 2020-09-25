@@ -17,8 +17,15 @@ model_true = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
 trans = Transition(2, np.array([[0.95, 0.05], [0.1, 0.9]]))
 model_true.transition = trans
 
-[x_true, mode_true] = model_true.simulate(np.random.rand(2))
-mode_infered_true = model_true.viterbi(x_true)
+x_true = []
+mode_true = []
+num_signals = 20
+for n in range(num_signals):
+    [_x, _mode] = model_true.simulate(np.random.rand(2))
+    x_true.append(_x)
+    mode_true.append(_mode)
+    
+mode_infered_true = model_true.viterbi(x_true[0])
 
 # Test model
 dyn_mtrxs = [0.5 * np.random.rand(2,3), 0.5 * np.random.rand(2,3)]
@@ -29,11 +36,11 @@ for _n in range(4):
 model = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
 model.initialize(x_true, use_pos=False)
 model.em_algorithm(x_true)
-mode_infered = model.viterbi(x_true)
+mode_infered = model.viterbi(x_true[0])
 
 plt.figure()
 plt.subplot(311)
-plt.imshow(np.array([mode_true]), aspect='auto')
+plt.imshow(np.array([mode_true[0]]), aspect='auto')
 plt.subplot(312)
 plt.imshow(np.array([mode_infered_true]), aspect='auto')
 plt.subplot(313)
