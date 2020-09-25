@@ -1,5 +1,5 @@
 import numpy as np
-
+from nl_arhmm.utils import normalize_rows
 
 class Transition(object):
 
@@ -12,7 +12,7 @@ class Transition(object):
 
         # Making each row of the matrix an actual probability density
         trans_mtrx = np.maximum(trans_mtrx, 0.0)
-        trans_mtrx /= np.reshape(np.sum(trans_mtrx, 1), [self.n_modes, 1])
+        trans_mtrx = normalize_rows(trans_mtrx)
         self.trans_mtrx = trans_mtrx
         self.logtrans = np.log(trans_mtrx)
 

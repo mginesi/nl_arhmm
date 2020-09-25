@@ -48,6 +48,9 @@ class ARHMM(object):
         Estimate the initial guess of the parameters.
         '''
 
+        if not isinstance(data_set, list):
+            data_set = [data_set]
+
         # Preliminary data fit with k-Means
         from sklearn.cluster import KMeans
         times = np.array([len(_data) for _data in data_set])

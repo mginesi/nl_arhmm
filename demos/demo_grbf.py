@@ -78,7 +78,7 @@ for _ in range(num_signal):
     [_state, _mode_true] = model.simulate(_in, T, sigma)
     state.append(_state)
     mode_true.append(_mode_true)
-model.initialize(state, use_diff=False)
+model.initialize(state, use_pos=False)
 model.em_algorithm(state)
 print(model.transition.trans_mtrx)
 
