@@ -309,7 +309,10 @@ class ARHMM(object):
         for k in range(len(gamma_set)):
             num += np.sum(xi_set[k], axis=0)
             den += np.sum(gamma_set[k][:-1], axis=0)
-        self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]) + self.correction)
+        # The two corrections are applied following the sequent argument:
+        # 1. Denominator should be non-zero in each component
+        # 2. Transition matrix should ha no non-zero components so to not block transitions
+        self.transition.trans_mtrx = normalize_rows(num / (np.reshape(den, [self.n_modes, 1]) + self.correction) + self.correction)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
     def maximize_emissions_components(self,_in):
