@@ -24,17 +24,6 @@ class ARHMM(object):
         self.dynamics = dynamics
         self.sigma_set = sigmas
 
-    def compute_log_likelihood(self, data_stream):
-        '''
-        Compute the log of the likelihood
-          p ( X | Theta ) = p( X1 | Theta) p( X2 | Theta) ... p( Xk | Theta)
-        by scratch.
-        '''
-        pool = multiprocessing.Pool()
-        forward_stream = pool.map(self.compute_forward_var, data_stream)
-        c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
-        return self.give_log_likelihood(c_stream)
-
     def give_log_likelihood(self, log_c_stream):
         '''
         Compute the likelihood of the data
@@ -107,6 +96,9 @@ class ARHMM(object):
 
         # Perform EM algorithm
         count = 0
+
+        # First iteration of the forward variable (needed to compute the scaling term c used to
+        # compute the log likelihood)
         forward_stream = pool.map(self.compute_forward_var, data_set)
         alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
         c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
@@ -129,6 +121,7 @@ class ARHMM(object):
             self.maximize_transition(gamma_stream, xi_stream)
             self.maximize_emissions(gamma_stream, data_set)
 
+            # Compute the forward variables and the rescaling terms
             forward_stream = pool.map(self.compute_forward_var, data_set)
             alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
             c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
