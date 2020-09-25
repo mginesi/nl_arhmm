@@ -26,7 +26,7 @@ class ARHMM(object):
 
     def compute_log_likelihood(self, data_stream):
         '''
-        Compute the likelihood
+        Compute the log of the likelihood
           p ( X | Theta ) = p( X1 | Theta) p( X2 | Theta) ... p( Xk | Theta)
         by scratch.
         '''
@@ -100,48 +100,45 @@ class ARHMM(object):
         '''
         Perform the EM algorithm.
         '''
+        pool = multiprocessing.Pool()
         # Check if data_set is a single demonstration or a list
         if not(isinstance(data_set, list)):
             data_set = [data_set]
 
         # Perform EM algorithm
         count = 0
-        new_lh = self.compute_log_likelihood(data_set)
+        forward_stream = pool.map(self.compute_forward_var, data_set)
+        alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
+        c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
+        new_lh = self.give_log_likelihood(c_stream)
         print('Step 0: LH = ' + str(new_lh))
         convergence = False
         while not convergence:
             count += 1
             old_lh = copy.deepcopy(new_lh)
-            new_lh = self.em_step(data_set)
+
+            # Compute the backward variables
+            beta_stream = pool.map(self.compute_backward_var, zip(data_set, c_stream))
+
+            # Compute the marginals
+            gamma_stream = pool.map(self.compute_gamma, zip(alpha_stream, beta_stream))
+            xi_stream = pool.map(self.compute_xi, zip(alpha_stream, beta_stream, data_set, c_stream))
+
+            # Maximization Step
+            self.maximize_initial(gamma_stream)
+            self.maximize_transition(gamma_stream, xi_stream)
+            self.maximize_emissions(gamma_stream, data_set)
+
+            forward_stream = pool.map(self.compute_forward_var, data_set)
+            alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
+            c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
+            new_lh = self.give_log_likelihood(c_stream)
+
             convergence = ((np.abs((new_lh - old_lh) / old_lh) < tol)) or (count > max_iter)
             if verbose:
                 print('Step ' + str(count) + ': LH = ' + str(new_lh))
 
-    def em_step(self, data_stream):
-        '''
-        Performs a step of the EM algorithm.
-        '''
-        pool = multiprocessing.Pool()
-        # Compute forward and backward variables
-        forward_stream = pool.map(self.compute_forward_var, data_stream)
-        alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
-        c_rescale_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
-        beta_stream = pool.map(self.compute_backward_var, zip(data_stream, c_rescale_stream))
-
-        # Compute gamma and xi functions
-        gamma_stream = pool.map(self.compute_gamma, zip(alpha_stream, beta_stream))
-        xi_stream = pool.map(self.compute_xi, zip(alpha_stream, beta_stream, data_stream, c_rescale_stream))
-
-        # Maximize
-        self.maximize_initial(gamma_stream)
-        self.maximize_transition(gamma_stream, xi_stream)
-        self.maximize_emissions(gamma_stream, data_stream)
-
-        # This re-computation is needed to compute the new likelihood
-        forward_stream = pool.map(self.compute_forward_var, data_stream)
-        alpha_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
-
-        return self.give_log_likelihood(alpha_stream)
+        return
 
     def give_prob_of_next_step(self, y0, y1, mode):
         mu = self.dynamics[mode].apply_vector_field(y0)
