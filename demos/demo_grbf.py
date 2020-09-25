@@ -1,6 +1,7 @@
 import numpy as np
 from nl_arhmm.dynamic import GRBF_Dynamic
 from nl_arhmm.arhmm import GRBF_ARHMM
+from nl_arhmm.transition import Transition
 import matplotlib.pyplot as plt
 
 ## Real dynamics
@@ -52,9 +53,12 @@ dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 
 # Creating the NL - ARHMM
 model = GRBF_ARHMM(2, 2, [centers, centers], [0.5 * np.ones(24), 0.5 * np.ones(24)],
-                 [dyn_st.weights, dyn_ol.weights], [0.05 * np.eye(2), 0.05 * np.eye(2)])
+                 [dyn_st.weights, dyn_ol.weights], [0.0001 * np.eye(2), 0.0001 * np.eye(2)])
 
-T = 100
+trans = Transition(2, np.array([[0.95, 0.05], [0.05, 0.95]]))
+model.transition = trans
+
+T = 200
 sigma = np.array([[1, 0],
                   [0, 1]])
 state = []
@@ -64,7 +68,7 @@ for _ in range(num_signal):
     _rho = np.random.rand()
     _theta = np.random.rand() * 2.0 * np.pi
     _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
-    [_state, _mode_true] = model.simulate(_in, T) #, sigma)
+    [_state, _mode_true] = model.simulate(_in, T)
     state.append(_state)
     mode_true.append(_mode_true)
 

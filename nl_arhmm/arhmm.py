@@ -162,18 +162,16 @@ class ARHMM(object):
             self.dynamics[_m].learn_vector_field(_in_set, _out_set)
             self.sigma_set[_m] = self.dynamics[_m].estimate_cov_mtrx(_in_set, _out_set)
 
-    def simulate(self, y0=None, T=100, noise=None):
+    def simulate(self, y0=None, T=100):
         if y0 is None:
             y0 = np.zeros(self.n_dim)
-        if noise is None:
-            noise = np.eye(self.n_dim)
         _mode = self.initial.sample()
         mode_seq = [_mode]
         _y = copy.deepcopy(y0)
         state_seq = [_y]
         for _t in range(T):
             _y = self.dynamics[_mode].apply_vector_field(_y) + \
-                np.dot(noise, np.random.randn(self.n_dim))
+                np.dot(self.sigma_set[_mode], np.random.randn(self.n_dim))
             state_seq.append(_y)
             _mode = self.transition.sample(_mode)
             mode_seq.append(_mode)
