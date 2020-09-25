@@ -12,12 +12,13 @@ from nl_arhmm.utils import normal_prob, log_normal_prob, normalize_vect, normali
 
 class ARHMM(object):
 
-    def __init__(self, n_dim, n_modes, dynamics, sigmas):
+    def __init__(self, n_dim, n_modes, dynamics, sigmas, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
         self.n_dim = n_dim
         self.n_modes = n_modes
+        self.correction = correction
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
         self.dynamics = dynamics
@@ -81,7 +82,7 @@ class ARHMM(object):
         _init = np.zeros(self.n_modes)
         for _m in range(self.n_modes):
             _init[_m] = list(km.labels_[times]).count(_m)
-        _init += 1 # to avoid null components
+        _init += self.correction # to avoid null components
         self.initial.density = normalize_vect(_init)
         self.initial.logint = np.log(self.initial.density)
 
@@ -91,7 +92,7 @@ class ARHMM(object):
         for _m in range(self.n_modes):
             for _n in range(self.n_modes):
                 _T[_m, _n] = trans.count([_m, _n])
-        _T += 1 # to avoid null components
+        _T += self.correction # to avoid null components
         self.transition.trans_mtrx = normalize_rows(_T)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
@@ -308,6 +309,7 @@ class ARHMM(object):
         K = len(gamma_set)
         for _, _gamma in enumerate(gamma_set):
             new_init += _gamma[0] / K
+        new_init += self.correction
         self.initial.density = normalize_vect(new_init)
         self.initial.loginit = np.log(self.initial.density)
 
@@ -317,7 +319,7 @@ class ARHMM(object):
         for k in range(len(gamma_set)):
             num += np.sum(xi_set[k], axis=0)
             den += np.sum(gamma_set[k][:-1], axis=0)
-        self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]))
+        self.transition.trans_mtrx = normalize_rows(num / np.reshape(den, [self.n_modes, 1]) + self.correction)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
     def maximize_emissions_components(self,_in):
@@ -383,11 +385,11 @@ class ARHMM(object):
                 sigma_den[_s] += cov_den[k][_s]
         for _s in range(self.n_modes):
             self.dynamics[_s].weights = np.dot(omega_num[_s], np.linalg.pinv(omega_den[_s]))
-            self.sigma_set[_s] = sigma_num[_s] / sigma_den[_s]
+            self.sigma_set[_s] = sigma_num[_s] / sigma_den[_s] + self.correction * np.eye(self.n_dim)
 
 class GRBF_ARHMM(ARHMM):
 
-    def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, dyn_weights, sigmas):
+    def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, dyn_weights, sigmas, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -399,11 +401,12 @@ class GRBF_ARHMM(ARHMM):
         for _m in range(self.n_modes):
             self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_center[_m], dyn_widths[_m], dyn_weights[_m]))
         self.sigma_set = sigmas
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set)
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
 
 class Linear_ARHMM(ARHMM):
 
-    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas):
+    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -415,4 +418,5 @@ class Linear_ARHMM(ARHMM):
         for _m in range(self.n_modes):
             self.dynamics.append(Linear_Dynamic(self.n_dim, dyn_mtrxs[_m]))
         self.sigma_set = sigmas
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set)
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
