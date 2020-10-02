@@ -111,7 +111,7 @@ class ARHMM(object):
             old_lh = copy.deepcopy(new_lh)
 
             # Compute the backward variables
-            beta_stream = pool.map(self.compute_backward_var, zip(data_set, c_stream))
+            beta_stream = pool.map(self.compute_backward_var, zip(logprob_future_stream, c_stream))
 
             # Compute the marginals
             gamma_stream = pool.map(self.compute_gamma, zip(alpha_stream, beta_stream))
@@ -254,22 +254,15 @@ class ARHMM(object):
           beta(z_t) = ----------------------------------------------------
                        p (y_{t+1}, .. , y_T | y_0, ..., y_t, Theta^{old})
         '''
-        _data = _in[0]
+        _logprob_data = _in[0]
         _log_c_rescale = _in[1]
         # Initialization
-        T = len(_data) - 1
+        T = len(_logprob_data)
         log_beta = np.zeros([T, self.n_modes])
 
         # Recursion
-        log_p_future = np.zeros(self.n_modes) # initialization
         for _t in range(T - 2, -1, -1):
-            # Computing p(y_{t+2} | y_{t+1}, z_{t+1})
-            # FIXME: this is computed also in the forward variable recursion: can we avoid it?
-            for _m in range(self.n_modes):
-                log_p_future[_m] = log_normal_prob(_data[_t + 2],
-                    self.dynamics[_m].apply_vector_field(_data[_t + 1]),
-                    self.sigma_set[_m])
-            log_beta[_t] = logsumexp(log_beta[_t + 1] + log_p_future + self.transition.logtrans,
+            log_beta[_t] = logsumexp(log_beta[_t + 1] + _logprob_data[_t + 1] + self.transition.logtrans,
                                      axis = 1) - _log_c_rescale[_t + 1]
 
         return log_beta
