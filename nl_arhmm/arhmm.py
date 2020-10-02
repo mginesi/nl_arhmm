@@ -210,6 +210,18 @@ class ARHMM(object):
     #                              Expectation step functions                                 #
     # --------------------------------------------------------------------------------------- #
 
+    def compute_log_probability(self, _data):
+        logp_future = []
+        T = len(_data) - 1
+        _logp = np.zeros(self.n_modes)
+        for _t in range(T):
+            for _m in range(self.n_modes):
+                _logp[_m] = log_normal_prob(_data[_t + 1],
+                            self.dynamics[_m].apply_vector_field(_data[_t]),
+                            self.sigma_set[_m])
+            logp_future.append(_logp)
+        return logp_future
+
     def compute_forward_var(self, _data):
         '''
         Recursively compute the (logarithm of) scaled forward variables and the scaling factors
@@ -258,6 +270,7 @@ class ARHMM(object):
         log_p_future = np.zeros(self.n_modes) # initialization
         for _t in range(T - 2, -1, -1):
             # Computing p(y_{t+2} | y_{t+1}, z_{t+1})
+            # FIXME: this is computed also in the forward variable recursion: can we avoid it?
             for _m in range(self.n_modes):
                 log_p_future[_m] = log_normal_prob(_data[_t + 2],
                     self.dynamics[_m].apply_vector_field(_data[_t + 1]),
