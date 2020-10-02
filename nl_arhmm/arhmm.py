@@ -115,7 +115,7 @@ class ARHMM(object):
 
             # Compute the marginals
             gamma_stream = pool.map(self.compute_gamma, zip(alpha_stream, beta_stream))
-            xi_stream = pool.map(self.compute_xi, zip(alpha_stream, beta_stream, data_set, c_stream))
+            xi_stream = pool.map(self.compute_xi, zip(alpha_stream, beta_stream, logprob_future_stream, c_stream))
 
             # Maximization Step
             self.maximize_initial(gamma_stream)
@@ -275,17 +275,13 @@ class ARHMM(object):
     def compute_xi(self, _in):
         log_alpha = _in[0]
         log_beta = _in[1]
-        data = _in[2]
+        _logprob_future = _in[2]
         log_c_rescale = _in[3]
         T = np.shape(log_alpha)[0]
         _xi = np.zeros([T - 1, self.n_modes, self.n_modes])
-        log_p_future = np.zeros(self.n_modes) # FIXME: computed in other functions!
         for _t in range(T - 1):
-            for _m in range(self.n_modes):
-                log_p_future[_m] = log_normal_prob(data[_t + 2],
-                    self.dynamics[_m].apply_vector_field(data[_t + 1]), self.sigma_set[_m])
             _xi[_t] = (log_alpha[_t] + self.transition.logtrans.transpose()).transpose() + \
-                log_p_future + log_beta[_t + 1] - log_c_rescale[_t + 1]
+                _logprob_future[_t + 1] + log_beta[_t + 1] - log_c_rescale[_t + 1]
             _xi[_t] = normalize_mtrx(np.exp(_xi[_t]))
         return _xi
 
