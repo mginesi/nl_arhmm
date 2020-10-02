@@ -99,7 +99,8 @@ class ARHMM(object):
 
         # First iteration of the forward variable (needed to compute the scaling term c used to
         # compute the log likelihood)
-        forward_stream = pool.map(self.compute_forward_var, data_set)
+        logprob_future_stream = pool.map(self.compute_log_probability, data_set)
+        forward_stream = pool.map(self.compute_forward_var, logprob_future_stream)
         alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
         c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
         new_lh = self.give_log_likelihood(c_stream)
@@ -122,7 +123,8 @@ class ARHMM(object):
             self.maximize_emissions(gamma_stream, data_set)
 
             # Compute the forward variables and the rescaling terms
-            forward_stream = pool.map(self.compute_forward_var, data_set)
+            logprob_future_stream = pool.map(self.compute_log_probability, data_set)
+            forward_stream = pool.map(self.compute_forward_var, logprob_future_stream)
             alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
             c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
             new_lh = self.give_log_likelihood(c_stream)
@@ -222,31 +224,23 @@ class ARHMM(object):
             logp_future.append(_logp)
         return logp_future
 
-    def compute_forward_var(self, _data):
+    def compute_forward_var(self, _logprob_data):
         '''
         Recursively compute the (logarithm of) scaled forward variables and the scaling factors
           alpha(z_t) = p (z_t | y_0, .. , y_{t+1}, Theta^{old})
           c_t = p (y_t | y_0, ..., y_{t-1}, Theta^{old})
         '''
-        T = len(_data) - 1
+        T = len(_logprob_data)
         log_alpha = np.zeros([T, self.n_modes])
         log_c_rescale = np.zeros(T)
         # Basis of recursion
-        for _m in range(self.n_modes):
-            log_alpha[0][_m] = log_normal_prob(_data[1],
-                self.dynamics[_m].apply_vector_field(_data[0]), self.sigma_set[_m]) + \
-                self.initial.loginit[_m]
+        log_alpha[0] = _logprob_data[0] + self.initial.loginit
         log_c_rescale[0] = logsumexp(log_alpha[0])
         log_alpha[0] -= log_c_rescale[0]
 
         # Recursion
-        log_p_future = np.zeros(self.n_modes) # initialization
         for _t in range(1, T):
-            # Computing p(y_{t+1} | y_t, z_t)
-            for _m in range(self.n_modes):
-                log_p_future[_m] = log_normal_prob(_data[_t+1],
-                    self.dynamics[_m].apply_vector_field(_data[_t]), self.sigma_set[_m])
-            log_alpha[_t] = log_p_future + \
+            log_alpha[_t] = _logprob_data[_t] + \
                 logsumexp(log_alpha[_t - 1] + np.transpose(self.transition.logtrans), axis = 1)
             log_c_rescale[_t] = logsumexp(log_alpha[_t])
             log_alpha[_t] -= log_c_rescale[_t]
