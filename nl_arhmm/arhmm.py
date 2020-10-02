@@ -221,7 +221,7 @@ class ARHMM(object):
                 _logp[_m] = log_normal_prob(_data[_t + 1],
                             self.dynamics[_m].apply_vector_field(_data[_t]),
                             self.sigma_set[_m])
-            logp_future.append(_logp)
+            logp_future.append(copy.deepcopy(_logp))
         return logp_future
 
     def compute_forward_var(self, _logprob_data):
