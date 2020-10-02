@@ -24,7 +24,7 @@ for n in range(num_signals):
     [_x, _mode] = model_true.simulate(np.random.rand(2))
     x_true.append(_x)
     mode_true.append(_mode)
-    
+
 mode_infered_true = model_true.viterbi(x_true[0])
 
 # Test model
