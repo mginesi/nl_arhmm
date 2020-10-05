@@ -33,8 +33,8 @@ for _rho in range(3):
     for _theta in range(8):
         centers[8 * _rho + _theta, 0] = _rho * np.cos(_theta)
         centers[8 * _rho + _theta, 1] = _rho * np.sin(_theta)
-dyn_st = GRBF_Dynamic(2, centers, 0.5 * np.ones(24))
-dyn_ol = GRBF_Dynamic(2, centers, 0.5 * np.ones(24))
+dyn_st = GRBF_Dynamic(2, centers, 0.25 * np.ones(24))
+dyn_ol = GRBF_Dynamic(2, centers, 0.25 * np.ones(24))
 
 # Creating the data sample to infer the dynamics
 data_in = []
@@ -71,7 +71,6 @@ for _ in range(num_signal):
     [_state, _mode_true] = model.simulate(_in, T)
     state.append(_state)
     mode_true.append(_mode_true)
-
 
 mode_inferred = model.viterbi(state[0])
 
