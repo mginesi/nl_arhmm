@@ -374,7 +374,7 @@ class ARHMM(object):
                 sigma_den[_s] += cov_den[k][_s]
         for _s in range(self.n_modes):
             self.dynamics[_s].weights = np.dot(omega_num[_s], np.linalg.pinv(omega_den[_s]))
-            self.sigma_set[_s] = sigma_num[_s] / sigma_den[_s] + self.correction * np.eye(self.n_dim)
+            self.sigma_set[_s] = sigma_num[_s] / (sigma_den[_s] + self.correction) + self.correction * np.eye(self.n_dim)
 
 class GRBF_ARHMM(ARHMM):
 
