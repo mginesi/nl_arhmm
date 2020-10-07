@@ -12,7 +12,7 @@ from nl_arhmm.utils import normal_prob, log_normal_prob, normalize_vect, normali
 
 class ARHMM(object):
 
-    def __init__(self, n_dim, n_modes, dynamics, sigmas, correction=1e-08):
+    def __init__(self, n_dim, n_modes, dynamics, sigmas, correction=1e-14):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
