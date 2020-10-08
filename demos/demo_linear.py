@@ -45,4 +45,16 @@ plt.subplot(312)
 plt.imshow(np.array([mode_infered_true]), aspect='auto')
 plt.subplot(313)
 plt.imshow(np.array([mode_infered]), aspect='auto')
+
+plt.figure()
+plt.subplot(211)
+plt.plot(x_true[0][:, 0], 'r')
+plt.xlim(0, len(x_true[0][:,0]) - 1)
+plt.subplot(212)
+plt.plot(x_true[0][:, 1], 'g')
+plt.xlim(0, len(x_true[0][:,0]) - 1)
+
+plt.figure()
+plt.plot(x_true[0][:,0], x_true[0][:,1])
+
 plt.show()

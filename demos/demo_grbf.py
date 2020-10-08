@@ -40,13 +40,14 @@ dyn_ol = GRBF_Dynamic(2, centers, 0.25 * np.ones(24))
 data_in = []
 data_out_stable = []
 data_out_omega_lim = []
+dt = 0.1
 for _ in range(500):
     _rho = np.random.rand()
     _theta = np.random.rand() * 2.0 * np.pi
     _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
     data_in.append(_in)
-    data_out_stable.append(vf_stable(_in))
-    data_out_omega_lim.append(vf_omega_lim(_in))
+    data_out_stable.append(_in + dt * vf_stable(_in))
+    data_out_omega_lim.append(_in + dt * vf_omega_lim(_in))
 
 dyn_st.learn_vector_field(data_in, data_out_stable)
 dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
@@ -86,4 +87,16 @@ plt.subplot(312)
 plt.imshow(np.array([mode_inferred]), aspect='auto')
 plt.subplot(313)
 plt.imshow(np.array([mode_inferred_em]), aspect='auto')
+
+plt.figure()
+plt.subplot(211)
+plt.plot(state[0][:, 0], 'r')
+plt.xlim(0, len(state[0][:,0]) - 1)
+plt.subplot(212)
+plt.plot(state[0][:, 1], 'g')
+plt.xlim(0, len(state[0][:,0]) - 1)
+
+plt.figure()
+plt.plot(state[0][:,0], state[0][:,1])
+
 plt.show()
