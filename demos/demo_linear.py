@@ -1,14 +1,24 @@
 import numpy as np
 from nl_arhmm.arhmm import Linear_ARHMM
 from nl_arhmm.transition import Transition
+from nl_arhmm.initial import Initial
 import matplotlib.pyplot as plt
 
 # ARHMM
 
 # True model
-A_counterclock = np.array([[0.0, 1.0, -1.0], [0.0, 1.0, 1.0]]) / np.sqrt(2.0)
-A_clock = np.array([[0.0, 1.0, 1.0], [0.0, -1.0, 1.0]]) / np.sqrt(2.0)
-dyn_mtrxs = [A_counterclock, A_clock]
+A_counterclock = np.array([[1.0, -1.0], [1.0, 1.0]]) / np.sqrt(2.0)
+b_counterclock = np.array([0.5, 0.5])
+A_clock = np.array([[1.0, 1.0], [-1.0, 1.0]]) / np.sqrt(2.0)
+b_clock = np.array([-0.5, -0.5])
+
+M_counterclock = np.zeros([2, 3])
+M_counterclock[:, 0] = b_counterclock
+M_counterclock[:, 1:] = A_counterclock
+M_clock = np.zeros([2, 3])
+M_clock[:, 0] = b_clock
+M_clock[:, 1:] = A_clock
+dyn_mtrxs = [M_counterclock, M_clock]
 sigmas = []
 for _n in range(4):
     rm = np.eye(2) * 0.1
@@ -16,6 +26,8 @@ for _n in range(4):
 model_true = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
 trans = Transition(2, np.array([[0.95, 0.05], [0.1, 0.9]]))
 model_true.transition = trans
+init = Initial(2, np.array([0.5, 0.5]))
+model_true.initial = init
 
 x_true = []
 mode_true = []
@@ -38,6 +50,26 @@ model.initialize(x_true, use_pos=False)
 model.em_algorithm(x_true)
 mode_infered = model.viterbi(x_true[0])
 
+# ---  Printing  ---
+print(" --  True Model  -- ")
+print("Initial density")
+print(model_true.initial.density)
+print("Transition matrix")
+print(model_true.transition.trans_mtrx)
+print("Vector field")
+print(model_true.dynamics[0].weights)
+print(model_true.dynamics[1].weights)
+
+print(" --  Inferred Model  -- ")
+print("Initial density")
+print(model.initial.density)
+print("Transition matrix")
+print(model.transition.trans_mtrx)
+print("Vector field")
+print(model.dynamics[0].weights)
+print(model.dynamics[1].weights)
+
+# ---  Plotting  ---
 plt.figure()
 plt.subplot(311)
 plt.imshow(np.array([mode_true[0]]), aspect='auto')
