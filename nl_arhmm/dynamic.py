@@ -109,6 +109,58 @@ class Linear_Dynamic(object):
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
+class Quadratic_Dynamic(object):
+
+    def __init__(self, n_dim, weights=None):
+        self.n_dim = n_dim
+        self.weights = weights
+        self.n_basis = int(1 + self.n_dim + (self.n_dim * (self.n_dim + 1)) / 2)
+
+    def compute_phi_vect(self, x):
+        '''
+        Compute the vector phi(x)
+        phi_0(x) = 1
+        phi_i(x) = x_i, i = 1, 2, ..., d
+        phi_{d + d * (i - 1) + j} (x) = x_i x * j, i = 1, 2, ..., d, j = i, i+1, ..., d
+        '''
+        phi = np.ones(1 + self.n_dim)
+        phi[0] = 1.0
+        phi[1:] = x
+        for _i in range(self.n_dim):
+            phi = np.append(phi, x[_i] * x)
+        return phi
+
+        def estimate_cov_mtrx(self, input_set, output_set):
+            '''
+            Given a set of input vectors and a set of output vectors, return the covariance matrix.
+            It is computed as the covariance of the errors when applying the vector field.
+            '''
+            # TODO: check if there is a better way!!
+            pred_set = []
+            for _, _in in enumerate(input_set):
+                pred_set.append(self.apply_vector_field(_in))
+            pred_set = np.asarray(pred_set)
+            output_set = np.asarray(output_set)
+            err_set = output_set - pred_set
+            return np.cov(np.transpose(err_set))
+
+    def learn_vector_field(self, input_set, output_set, weights=None):
+        '''
+        Compute the set of weights given the input and output set.
+        '''
+        n_data = len(input_set)
+        if weights is None:
+            weights = np.ones(n_data)
+        sqrt_weights = np.sqrt(np.asarray(weights))
+        phi_mat = np.zeros([n_data, self.n_basis + 1])
+        for _n in range(n_data):
+            phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
+        T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
+        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+
+    def apply_vector_field(self, x):
+        return np.dot(self.weights, self.compute_phi_vect(x))
+
 # ------------------------------------------------------------------------------------------- #
 #                                           Demo                                              #
 # ------------------------------------------------------------------------------------------- #
@@ -283,5 +335,28 @@ if __name__ == "__main__":
     plt.plot(x_demo[:, 0], x_demo[:, 1], '-r', label='Inferred')
     plt.plot(x_demo_true[:, 0], x_demo_true[:, 1], '--b', label='True')
     plt.legend(loc='best')
+
+    # Quadratic basis functions
+    from dynamic import Quadratic_Dynamic
+    dyn = Quadratic_Dynamic(2)
+    x_0 = np.array([0.0, 0.9])
+    _x = np.array([x_0])
+    for _ in range(1000):
+        _x = np.append(_x, np.array([_x[-1] + 0.01 * vf_stable(_x[-1]) ]), axis=0)
+    dyn.learn_vector_field(_x[:-1], _x[1:])
+    x = np.array([x_0])
+    for _t in range(1000):
+        x = np.append(x, np.array([dyn.apply_vector_field(x[-1])]), axis=0)
+    dyn_l = Linear_Dynamic(2)
+    dyn_l.learn_vector_field(_x[:-1], _x[1:])
+    x_l = np.array([x_0])
+    for _t in range(1000):
+        x_l = np.append(x_l, np.array([dyn_l.apply_vector_field(x_l[-1])]), axis=0)
+    plt.figure()
+    plt.plot(_x[:, 0], _x[:, 1], '-r', label='true')
+    plt.plot(x[:, 0], x[:, 1], '--b', label='quad')
+    plt.plot(x_l[:, 0], x_l[:, 1], ':g', label='linear')
+    plt.legend(loc='best')
+    plt.title('Quadratic VS Linear')
 
     plt.show()

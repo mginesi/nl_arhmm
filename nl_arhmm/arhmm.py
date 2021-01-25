@@ -6,8 +6,6 @@ import multiprocessing
 
 from nl_arhmm.initial import Initial
 from nl_arhmm.transition import Transition
-from nl_arhmm.dynamic import GRBF_Dynamic
-from nl_arhmm.dynamic import Linear_Dynamic
 from nl_arhmm.utils import normal_prob, log_normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
 class ARHMM(object):
@@ -377,6 +375,7 @@ class ARHMM(object):
             self.sigma_set[_s] = sigma_num[_s] / (sigma_den[_s] + self.correction) + self.correction * np.eye(self.n_dim)
 
 class GRBF_ARHMM(ARHMM):
+    from nl_arhmm.dynamic import GRBF_Dynamic
 
     def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, dyn_weights, sigmas, correction=1e-08):
         '''
@@ -394,6 +393,25 @@ class GRBF_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
 
 class Linear_ARHMM(ARHMM):
+from nl_arhmm.dynamic import Linear_Dynamic
+
+    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
+        '''
+        Class to implement Auto-Regressive Hidden Markov Models.
+        '''
+        self.n_dim = n_dim
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Linear_Dynamic(self.n_dim, dyn_mtrxs[_m]))
+        self.sigma_set = sigmas
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
+
+class Quadratic_ARHMM(ARHMM):
+from nl_arhmm.dynamic import Quadratic_Dynamic
 
     def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
         '''
@@ -405,7 +423,7 @@ class Linear_ARHMM(ARHMM):
         self.transition = Transition(self.n_modes)
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Linear_Dynamic(self.n_dim, dyn_mtrxs[_m]))
+            self.dynamics.append(Quadratic_Dynamic(self.n_dim, dyn_mtrxs[_m]))
         self.sigma_set = sigmas
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
