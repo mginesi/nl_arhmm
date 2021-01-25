@@ -375,12 +375,13 @@ class ARHMM(object):
             self.sigma_set[_s] = sigma_num[_s] / (sigma_den[_s] + self.correction) + self.correction * np.eye(self.n_dim)
 
 class GRBF_ARHMM(ARHMM):
-    from nl_arhmm.dynamic import GRBF_Dynamic
 
     def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, dyn_weights, sigmas, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
+        from nl_arhmm.dynamic import GRBF_Dynamic
+
         self.n_dim = n_dim
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
@@ -393,12 +394,13 @@ class GRBF_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
 
 class Linear_ARHMM(ARHMM):
-from nl_arhmm.dynamic import Linear_Dynamic
 
     def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
         '''
         Class to implement Auto-Regressive Hidden Markov Models.
         '''
+        from nl_arhmm.dynamic import Linear_Dynamic
+
         self.n_dim = n_dim
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
@@ -411,12 +413,13 @@ from nl_arhmm.dynamic import Linear_Dynamic
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
 
 class Quadratic_ARHMM(ARHMM):
-from nl_arhmm.dynamic import Quadratic_Dynamic
 
     def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
+        from nl_arhmm.dynamic import Quadratic_Dynamic
+
         self.n_dim = n_dim
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
