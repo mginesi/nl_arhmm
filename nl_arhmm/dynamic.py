@@ -114,7 +114,7 @@ class Quadratic_Dynamic(object):
     def __init__(self, n_dim, weights=None):
         self.n_dim = n_dim
         self.weights = weights
-        self.n_basis = int(1 + self.n_dim + (self.n_dim * (self.n_dim + 1)) / 2)
+        self.n_basis = int(self.n_dim + (self.n_dim * (self.n_dim + 1)) / 2)
 
     def compute_phi_vect(self, x):
         '''
@@ -126,23 +126,24 @@ class Quadratic_Dynamic(object):
         phi = np.ones(1 + self.n_dim)
         phi[0] = 1.0
         phi[1:] = x
+        # TODO: vectorize me
         for _i in range(self.n_dim):
-            phi = np.append(phi, x[_i] * x)
+            phi = np.append(phi, x[_i] * x[_i:])
         return phi
 
-        def estimate_cov_mtrx(self, input_set, output_set):
-            '''
-            Given a set of input vectors and a set of output vectors, return the covariance matrix.
-            It is computed as the covariance of the errors when applying the vector field.
-            '''
-            # TODO: check if there is a better way!!
-            pred_set = []
-            for _, _in in enumerate(input_set):
-                pred_set.append(self.apply_vector_field(_in))
-            pred_set = np.asarray(pred_set)
-            output_set = np.asarray(output_set)
-            err_set = output_set - pred_set
-            return np.cov(np.transpose(err_set))
+    def estimate_cov_mtrx(self, input_set, output_set):
+        '''
+        Given a set of input vectors and a set of output vectors, return the covariance matrix.
+        It is computed as the covariance of the errors when applying the vector field.
+        '''
+        # TODO: check if there is a better way!!
+        pred_set = []
+        for _, _in in enumerate(input_set):
+            pred_set.append(self.apply_vector_field(_in))
+        pred_set = np.asarray(pred_set)
+        output_set = np.asarray(output_set)
+        err_set = output_set - pred_set
+        return np.cov(np.transpose(err_set))
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
