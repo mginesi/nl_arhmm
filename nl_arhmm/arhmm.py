@@ -430,3 +430,22 @@ class Quadratic_ARHMM(ARHMM):
         self.sigma_set = sigmas
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
+
+class Cubic_ARHMM(ARHMM):
+
+    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
+        '''
+        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
+        '''
+        from nl_arhmm.dynamic import Cubic_Dynamic
+
+        self.n_dim = n_dim
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Cubic_Dynamic(self.n_dim, dyn_mtrxs[_m]))
+        self.sigma_set = sigmas
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
