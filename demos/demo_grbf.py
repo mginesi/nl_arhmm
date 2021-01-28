@@ -53,8 +53,11 @@ dyn_st.learn_vector_field(data_in, data_out_stable)
 dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 
 # Creating the NL - ARHMM
-model = GRBF_ARHMM(2, 2, [centers, centers], [0.5 * np.ones(24), 0.5 * np.ones(24)],
-                 [dyn_st.weights, dyn_ol.weights], [0.0001 * np.eye(2), 0.0001 * np.eye(2)])
+model = GRBF_ARHMM(2, 2, [centers, centers], [0.5 * np.ones(24), 0.5 * np.ones(24)])
+model.dynamics[0].weights = dyn_st.weights
+model.dynamics[1].weights = dyn_ol.weights
+model.sigma_set[0] = 0.00001 * np.eye(2)
+model.sigma_set[1] = 0.00001 * np.eye(2)
 
 trans = Transition(2, np.array([[0.95, 0.05], [0.05, 0.95]]))
 model.transition = trans

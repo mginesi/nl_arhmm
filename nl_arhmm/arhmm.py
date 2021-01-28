@@ -10,7 +10,7 @@ from nl_arhmm.utils import normal_prob, log_normal_prob, normalize_vect, normali
 
 class ARHMM(object):
 
-    def __init__(self, n_dim, n_modes, dynamics, sigmas, correction=1e-14):
+    def __init__(self, n_dim, n_modes, dynamics, correction=1e-14):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -20,7 +20,7 @@ class ARHMM(object):
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
         self.dynamics = dynamics
-        self.sigma_set = sigmas
+        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
 
     def give_log_likelihood(self, log_c_stream):
         '''
@@ -376,7 +376,7 @@ class ARHMM(object):
 
 class GRBF_ARHMM(ARHMM):
 
-    def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, dyn_weights, sigmas, correction=1e-08):
+    def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -386,16 +386,16 @@ class GRBF_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
+        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_center[_m], dyn_widths[_m], dyn_weights[_m]))
-        self.sigma_set = sigmas
+            self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_center[_m], dyn_widths[_m]))
         self.correction = correction
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Linear_ARHMM(ARHMM):
 
-    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
+    def __init__(self, n_dim, n_modes, correction=1e-08):
         '''
         Class to implement Auto-Regressive Hidden Markov Models.
         '''
@@ -405,16 +405,16 @@ class Linear_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
+        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Linear_Dynamic(self.n_dim, dyn_mtrxs[_m]))
-        self.sigma_set = sigmas
+            self.dynamics.append(Linear_Dynamic(self.n_dim))
         self.correction = correction
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Quadratic_ARHMM(ARHMM):
 
-    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
+    def __init__(self, n_dim, n_modes, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -424,16 +424,16 @@ class Quadratic_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
+        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Quadratic_Dynamic(self.n_dim, dyn_mtrxs[_m]))
-        self.sigma_set = sigmas
+            self.dynamics.append(Quadratic_Dynamic(self.n_dim))
         self.correction = correction
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Cubic_ARHMM(ARHMM):
 
-    def __init__(self, n_dim, n_modes, dyn_mtrxs, sigmas, correction=1e-08):
+    def __init__(self, n_dim, n_modes, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -443,9 +443,9 @@ class Cubic_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
+        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Cubic_Dynamic(self.n_dim, dyn_mtrxs[_m]))
-        self.sigma_set = sigmas
+            self.dynamics.append(Cubic_Dynamic(self.n_dim))
         self.correction = correction
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, self.sigma_set, correction)
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)

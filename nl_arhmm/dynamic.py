@@ -3,17 +3,16 @@ import copy
 
 class GRBF_Dynamic(object):
 
-    def __init__(self, n_dim, centers, widths, weights=None):
+    def __init__(self, n_dim, centers, widths):
         '''
         Class encoding the dynamic.
         '''
         self.n_dim = n_dim
         self.centers = centers
-        self.n_basis = np.shape(centers)[0]
         self.widths = widths
-        if weights is None:
-            weights = np.zeros([self.n_dim, self.n_basis + 1])
-        self.weights = weights
+        _phi = self.compute_phi_vect(np.zeros(n_dim))
+        self.n_basis = len(_phi) - 1
+        self.weights = np.zeros([self.n_dim, self.n_basis + 1])
 
     def compute_phi_vect(self, x):
         '''
@@ -21,8 +20,8 @@ class GRBF_Dynamic(object):
           phi_0 = 1
           phi_j = exp (- alpha_j || x - mu_j || ^ 2)
         '''
-        phi = np.ones(self.n_basis + 1)
-        phi[1:] = np.exp(-self.widths * np.linalg.norm(self.centers - x, axis=1) ** 2.0)
+        phi = np.ones(1)
+        phi = np.append(phi, np.exp(-self.widths * np.linalg.norm(self.centers - x, axis=1) ** 2.0))
         return phi
 
     def estimate_cov_mtrx(self, input_set, output_set):
@@ -58,15 +57,15 @@ class GRBF_Dynamic(object):
 
 class Linear_Dynamic(object):
 
-    def __init__(self, n_dim, weights=None):
+    def __init__(self, n_dim):
         '''
         Class encoding the dynamic.
         '''
         self.n_dim = copy.deepcopy(n_dim)
         self.n_basis = self.n_dim
-        if weights is None:
-            weights = np.zeros([self.n_dim, self.n_dim + 1])
-        self.weights = copy.deepcopy(weights)
+        _phi = self.compute_phi_vect(np.zeros(n_dim))
+        self.n_basis = len(_phi) - 1
+        self.weights = np.zeros([self.n_dim, self.n_basis + 1])
 
     def compute_phi_vect(self, x):
         '''
@@ -74,8 +73,8 @@ class Linear_Dynamic(object):
           phi_0 = 1
           phi_j = x_j
         '''
-        phi = np.ones(self.n_dim + 1)
-        phi[1:] = copy.deepcopy(x)
+        phi = np.ones(1)
+        phi = np.append(phi, copy.deepcopy(x))
         return phi
 
     def estimate_cov_mtrx(self, input_set, output_set):
@@ -111,10 +110,11 @@ class Linear_Dynamic(object):
 
 class Quadratic_Dynamic(object):
 
-    def __init__(self, n_dim, weights=None):
+    def __init__(self, n_dim):
         self.n_dim = n_dim
-        self.weights = weights
-        self.n_basis = int(self.n_dim + (self.n_dim * (self.n_dim + 1)) / 2)
+        _phi = self.compute_phi_vect(np.zeros(n_dim))
+        self.n_basis = len(_phi) - 1
+        self.weights = np.zeros([self.n_dim, self.n_basis + 1])
 
     def compute_phi_vect(self, x):
         '''
@@ -164,11 +164,11 @@ class Quadratic_Dynamic(object):
 
 class Cubic_Dynamic(object):
 
-    def __init__(self, n_dim, weights=None):
+    def __init__(self, n_dim):
         self.n_dim = n_dim
-        self.weights = weights
-        phi = self.compute_phi_vect(np.zeros(self.n_dim))
-        self.n_basis = len(phi) - 1
+        _phi = self.compute_phi_vect(np.zeros(n_dim))
+        self.n_basis = len(_phi) - 1
+        self.weights = np.zeros([self.n_dim, self.n_basis + 1])
 
     def compute_phi_vect(self, x):
         '''

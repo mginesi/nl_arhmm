@@ -3,6 +3,20 @@ from nl_arhmm.arhmm import Linear_ARHMM
 from nl_arhmm.transition import Transition
 from nl_arhmm.initial import Initial
 import matplotlib.pyplot as plt
+from matplotlib import rc
+
+fs = 14
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica'],
+    'size':fs})
+rc('text', usetex=True)
+
+import matplotlib as mpl
+
+import matplotlib as mpl
+from matplotlib import colors
+cmap = colors.ListedColormap(['tab:purple', 'yellow', 'tab:green', 'tab:red', 'tab:blue', 'tab:orange'])
+bounds = [0, 1, 2, 3, 4, 5]
+norm = colors.BoundaryNorm(bounds, cmap.N)
 
 # ARHMM
 
@@ -20,10 +34,14 @@ M_clock[:, 0] = b_clock
 M_clock[:, 1:] = A_clock
 dyn_mtrxs = [M_counterclock, M_clock]
 sigmas = []
-for _n in range(4):
+for _n in range(2):
     rm = np.eye(2) * 0.1
     sigmas.append(rm)
-model_true = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
+model_true = Linear_ARHMM(2, 2)
+model_true.dynamics[0].weights = dyn_mtrxs[0]
+model_true.dynamics[1].weights = dyn_mtrxs[1]
+model_true.sigma_set[0] = sigmas[0]
+model_true.sigma_set[1] = sigmas[1]
 trans = Transition(2, np.array([[0.95, 0.05], [0.1, 0.9]]))
 model_true.transition = trans
 init = Initial(2, np.array([0.5, 0.5]))
@@ -45,7 +63,7 @@ sigmas = []
 for _n in range(4):
     rm = np.eye(2)
     sigmas.append(rm)
-model = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
+model = Linear_ARHMM(2, 2)
 model.initialize(x_true, use_pos=False)
 model.em_algorithm(x_true)
 mode_infered = model.viterbi(x_true[0])
@@ -59,6 +77,8 @@ print(model_true.transition.trans_mtrx)
 print("Vector field")
 print(model_true.dynamics[0].weights)
 print(model_true.dynamics[1].weights)
+print(model_true.sigma_set[0])
+print(model_true.sigma_set[1])
 
 print(" --  Inferred Model  -- ")
 print("Initial density")
@@ -68,25 +88,48 @@ print(model.transition.trans_mtrx)
 print("Vector field")
 print(model.dynamics[0].weights)
 print(model.dynamics[1].weights)
+print(model.sigma_set[0])
+print(model.sigma_set[1])
 
 # ---  Plotting  ---
 plt.figure()
 plt.subplot(311)
-plt.imshow(np.array([mode_true[0]]), aspect='auto')
+plt.imshow(np.array([mode_true[0]]), aspect='auto', cmap=cmap, norm=norm, interpolation='nearest')#, cmap=cmap, norm=norm)
+frame1 = plt.gca()
+frame1.axes.xaxis.set_ticklabels([])
+frame1.axes.yaxis.set_ticklabels([])
 plt.subplot(312)
-plt.imshow(np.array([mode_infered_true]), aspect='auto')
+plt.imshow(np.array([mode_infered_true]), aspect='auto', cmap=cmap, norm=norm, interpolation='nearest')#, cmap=cmap, norm=norm)
+frame1 = plt.gca()
+frame1.axes.xaxis.set_ticklabels([])
+frame1.axes.yaxis.set_ticklabels([])
 plt.subplot(313)
-plt.imshow(np.array([mode_infered]), aspect='auto')
+frame1 = plt.gca()
+frame1.axes.yaxis.set_ticklabels([])
+plt.imshow(np.array([mode_infered]), aspect='auto', cmap=cmap, norm=norm, interpolation='nearest')#, cmap=cmap, norm=norm)
+plt.xlabel(r"$t$")
 
-plt.figure()
-plt.subplot(211)
-plt.plot(x_true[0][:, 0], 'r')
-plt.xlim(0, len(x_true[0][:,0]) - 1)
-plt.subplot(212)
-plt.plot(x_true[0][:, 1], 'g')
-plt.xlim(0, len(x_true[0][:,0]) - 1)
+# plt.figure()
+# plt.subplot(211)
+# plt.plot(x_true[0][:, 0], 'r')
+# frame1 = plt.gca()
+# frame1.axes.xaxis.set_ticklabels([])
+# plt.xlim(0, len(x_true[0][:,0]) - 1)
+# plt.subplot(212)
+# frame1 = plt.gca()
+# frame1.axes.xaxis.set_ticklabels([])
+# plt.plot(x_true[0][:, 1], 'g')
+# plt.xlim(0, len(x_true[0][:,0]) - 1)
 
-plt.figure()
-plt.plot(x_true[0][:,0], x_true[0][:,1])
+# plt.figure()
+# plt.plot(x_true[0][:,0], x_true[0][:,1])
+
+# Computing error
+err_true = mode_true[0] - mode_infered_true
+err_learned = mode_true[0] - mode_infered
+
+print(" ---  Scores  --- ")
+print(np.count_nonzero(err_true) / 101)
+print(np.count_nonzero(err_learned) / 101)
 
 plt.show()
