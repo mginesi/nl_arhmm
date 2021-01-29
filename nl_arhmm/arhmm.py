@@ -83,6 +83,56 @@ class ARHMM(object):
         self.transition.trans_mtrx = normalize_rows(_T)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
+    def learn_parameters(self, data_set, mode_set):
+        '''
+        Learn the model parameters given both the observations and the hidden mode sequence.
+        '''
+        pool = multiprocessing.Pool()
+        if not(isinstance(data_set, list)):
+            data_set = [data_set]
+        if not(isinstance(mode_set, list)):
+            mode_set = [mode_set]
+
+        n_data = len(data_set)
+
+        # time series goes from 0 to T
+        T_set = [len(data_set[_i]) - 1 for _i in range(len(data_set))]
+
+        # --- Estimating the initial probability --- #
+        def count_initial(mode_seq):
+            in_count = np.zeros(self.n_modes)
+            in_count[mode_seq[0]] += 1
+            return in_count
+
+        in_count = np.asarray(pool.map(count_initial, mode_set))
+        coefs = np.reshape(np.asarray(T_set), [n_data, 1])
+        self.initial.density = normalize_vect(np.sum(in_count * coefs, axis = 0) / sum(T_set) + self.correction)
+
+        # --- Estimating the transition probability --- #
+        def count_transition(mode_seq):
+            # Count the total numer of transitions from one mode to the other
+            tr_count = np.zeros([self.n_modes, self.n_modes])
+            for _t in range(len(mode_seq) - 1):
+                tr_count[mode_seq[_t], mode_seq[_t + 1]] += 1
+            return tr_count
+
+        trans_count = np.asanyarray(pool.map(count_transition, mode_set)) # n_data x n_modes x n_modes
+        coefs = np.reshape(np.asarray(T_set), [n_data, 1, 1])
+        self.transition.trans_mtrx = normalize_rows(np.sum(trans_count * coefs, axis = 0) / sum(T_set) + self.correction)
+
+        # --- Estimating the dynamic --- #
+        # Done identically to maximize_emission in EM algorithm, with gamma being a dirac delta
+        # distribution
+        def give_gamma_dirac(mode_seq):
+            gamma = np.zeros([len(mode_seq), self.n_modes])
+            for _t in range(len(mode_seq)):
+                gamma[_t][mode_seq[_t]] = 1
+            gamma = normalize_rows(gamma + self.correction)
+            return gamma
+
+        gamma_set = pool.map(give_gamma_dirac, mode_set)
+        self.maximize_emissions(gamma_set, data_set)
+
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
         '''
         Perform the EM algorithm.
