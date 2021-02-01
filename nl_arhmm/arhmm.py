@@ -83,6 +83,23 @@ class ARHMM(object):
         self.transition.trans_mtrx = normalize_rows(_T)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
+    def gibbs_sampling(self, data_set, mode_set, i_max = 10):
+        '''
+        Perform a Gibbs Sampling like learning alternating Learning and segmentation.
+        '''
+        pool = multiprocessing.Pool()
+
+        # Check if the inputs are lists
+        if not(isinstance(data_set, list)):
+            data_set = [data_set]
+        if not(isinstance(mode_set, list)):
+            mode_set = [mode_set]
+
+        # Keep iterating learning and segmentation
+        for _i in i_max:
+            self.learn_parameters(data_set, mode_set)
+            mode_set = pool.map(self.viterbi, data_set)
+
     def learn_parameters(self, data_set, mode_set):
         '''
         Learn the model parameters given both the observations and the hidden mode sequence.
