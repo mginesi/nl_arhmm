@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import logsumexp
 import copy
+from tqdm import tqdm
 
 import multiprocessing
 
@@ -96,7 +97,7 @@ class ARHMM(object):
             mode_set = [mode_set]
 
         # Keep iterating learning and segmentation
-        for _i in i_max:
+        for _i in tqdm(range(i_max)):
             self.learn_parameters(data_set, mode_set)
             mode_set = pool.map(self.viterbi, data_set)
 
