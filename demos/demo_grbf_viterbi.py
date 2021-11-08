@@ -51,8 +51,7 @@ dyn_st.learn_vector_field(data_in, data_out_stable)
 dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 
 # Creating the NL - ARHMM
-model = GRBF_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)],
-                 [dyn_st.weights, dyn_ol.weights], [0.2 * np.eye(2), 0.2 * np.eye(2)])
+model = GRBF_ARHMM(2, 2, [centers, centers], [0.2 * np.ones(24), 0.2 * np.ones(24)])
 
 # Change the weights
 model.dynamics[0] = dyn_st
