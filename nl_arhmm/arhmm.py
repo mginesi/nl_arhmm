@@ -9,6 +9,9 @@ from nl_arhmm.initial import Initial
 from nl_arhmm.transition import Transition
 from nl_arhmm.utils import normal_prob, log_normal_prob, normalize_vect, normalize_rows, normalize_mtrx
 
+import gc
+gc.enable()
+
 class ARHMM(object):
 
     def __init__(self, n_dim, n_modes, dynamics, correction=1e-14):
@@ -83,6 +86,10 @@ class ARHMM(object):
         _T += self.correction # to avoid null components
         self.transition.trans_mtrx = normalize_rows(_T)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
+
+        # Cleaning
+        del x_diff, x_diff_all, data_complete, km
+        gc.collect()
 
     def gibbs_sampling(self, data_set, mode_set, i_max = 10):
         '''
@@ -180,6 +187,9 @@ class ARHMM(object):
             convergence = ((np.abs((new_lh - old_lh) / old_lh) < tol)) or (count > max_iter)
             if verbose:
                 print('Step ' + str(count) + ': LH = ' + str(new_lh))
+
+        del logprob_future_stream, forward_stream, alpha_stream, c_stream, gamma_stream, beta_stream, xi_stream
+        gc.collect()
 
         return
 
