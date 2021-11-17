@@ -67,7 +67,7 @@ def normalize_rows(M):
     '''
     Normalize each row of the given matrix.
     '''
-    return (M.transpose() / np.sum(M, 1)).transpose()
+    return M / np.array([np.sum(M, 1)]).transpose()
 
 def normalize_mtrx(M):
     '''

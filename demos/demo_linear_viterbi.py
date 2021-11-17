@@ -12,7 +12,7 @@ A_clock = np.array([[0.0, 1.0, 1.0], [0.0, -1.0, 1.0]]) / np.sqrt(2.0)
 dyn_mtrxs = [A_counterclock, A_clock]
 sigmas = [0.2*np.eye(2), 0.2*np.eye(2)]
 
-model = Linear_ARHMM(2, 2, dyn_mtrxs, sigmas)
+model = Linear_ARHMM(2, 2)
 model.initial.density = initial_distr
 model.transition.trans_mtrx = trans_mtrx
 
