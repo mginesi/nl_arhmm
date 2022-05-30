@@ -26,6 +26,13 @@ class ARHMM(object):
         self.dynamics = dynamics
         self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
 
+    def permute_order(self, permutation):
+        self.initial = self.initial[permutation]
+        self.dynamics = self.dynamics[permutation]
+        self.sigma_set = self.sigma_set[permutation]
+        self.transition = self.transition[permutation, :][:, permutation]
+        return
+
     def give_log_likelihood(self, log_c_stream):
         '''
         Compute the likelihood of the data
