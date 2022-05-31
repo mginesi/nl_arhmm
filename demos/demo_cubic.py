@@ -57,15 +57,13 @@ dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
 model = Cubic_ARHMM(2, 2)
 model.dynamics[0].weights = dyn_st.weights
 model.dynamics[1].weights = dyn_ol.weights
-model.sigma_set[0] = 0.1 * np.eye(2)
-model.sigma_set[1] = 0.1 * np.eye(2)
+model.dynamics[0].covariance = 0.01 * np.eye(2)
+model.dynamics[1].covariance = 0.01 * np.eye(2)
 
 trans = Transition(2, np.array([[0.95, 0.05], [0.05, 0.95]]))
 model.transition = trans
 
 T = 200
-sigma = np.array([[1, 0],
-                  [0, 1]])
 state = []
 mode_true = []
 num_signal = 20

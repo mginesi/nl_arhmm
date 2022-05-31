@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+from nl_arhmm.utils import normal_prob, log_normal_prob
+import multiprocessing
 
 class GRBF_Dynamic(object):
 
@@ -13,6 +15,7 @@ class GRBF_Dynamic(object):
         _phi = self.compute_phi_vect(np.zeros(n_dim))
         self.n_basis = len(_phi) - 1
         self.weights = np.zeros([self.n_dim, self.n_basis + 1])
+        self.covariance = np.eye(self.n_dim)
 
     def compute_phi_vect(self, x):
         '''
@@ -36,7 +39,7 @@ class GRBF_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        return np.cov(np.transpose(err_set))
+        self.covariance = np.cov(np.transpose(err_set))
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -52,6 +55,62 @@ class GRBF_Dynamic(object):
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
         self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
 
+    def maximize_emission_elements(self, in_arg):
+        '''
+        Perform the maximization step for the EM algorithm (for a single data stream)
+        '''
+        data = in_arg[0]
+        gamma_s = in_arg[1]
+        in_data = data[:-1]
+        out_data = data[1:]
+        T = np.shape(out_data)[0]
+        phi_data = []
+        expected_out_data = []
+        for _, _in in enumerate(in_data):
+            phi_data.append(self.compute_phi_vect(_in))
+            expected_out_data.append(self.apply_vector_field(_in))
+        expected_out_data = np.asarray(expected_out_data)
+
+        ## Covariance matrix update
+        err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+        err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+        cov_err = np.matmul(err, err_t)
+        cov_num = np.sum(cov_err * np.reshape(gamma_s, [T, 1, 1]), 0)
+        cov_den = np.sum(gamma_s)
+
+        ## Weights update
+        out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+        phi_in_row = np.reshape(np.asarray(phi_data), [T, 1, self.n_basis + 1])
+        phi_in_column = np.reshape(np.asarray(phi_data), [T, self.n_basis + 1, 1])
+
+        weights_num = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(out_data_3d, phi_in_row), 0)
+        weights_den = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(phi_in_column, phi_in_row), 0)
+        return [weights_num, weights_den, cov_num, cov_den]
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.maximize_emission_elements, zip(data_set, gamma_set))
+        # for _n in range(len(data_set)):
+        #     _data = data_set[_n]
+        #     _gamma = gamma_set[_n]
+        #     _out = self.maximize_emission_elements([_data, _gamma])
+        w_num = sum([_out[i][0] for i in range(len(_out))])
+        w_den = sum([_out[i][1] for i in range(len(_out))])
+        c_num = sum([_out[i][2] for i in range(len(_out))])
+        c_den = sum([_out[i][3] for i in range(len(_out))])
+        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
+
+    def give_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return normal_prob(y1, mu, self.covariance)
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return log_normal_prob(y1, mu, self.covariance)
+
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
@@ -66,6 +125,7 @@ class Linear_Dynamic(object):
         _phi = self.compute_phi_vect(np.zeros(n_dim))
         self.n_basis = len(_phi) - 1
         self.weights = np.zeros([self.n_dim, self.n_basis + 1])
+        self.covariance = np.eye(self.n_dim)
 
     def compute_phi_vect(self, x):
         '''
@@ -89,7 +149,7 @@ class Linear_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        return np.cov(np.transpose(err_set))
+        self.covariance = np.cov(np.transpose(err_set))
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -105,6 +165,62 @@ class Linear_Dynamic(object):
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
         self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
 
+    def maximize_emission_elements(self, in_arg):
+        '''
+        Perform the maximization step for the EM algorithm (for a single data stream)
+        '''
+        data = in_arg[0]
+        gamma_s = in_arg[1]
+        in_data = data[:-1]
+        out_data = data[1:]
+        T = np.shape(out_data)[0]
+        phi_data = []
+        expected_out_data = []
+        for _, _in in enumerate(in_data):
+            phi_data.append(self.compute_phi_vect(_in))
+            expected_out_data.append(self.apply_vector_field(_in))
+        expected_out_data = np.asarray(expected_out_data)
+
+        ## Covariance matrix update
+        err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+        err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+        cov_err = np.matmul(err, err_t)
+        cov_num = np.sum(cov_err * np.reshape(gamma_s, [T, 1, 1]), 0)
+        cov_den = np.sum(gamma_s)
+
+        ## Weights update
+        out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+        phi_in_row = np.reshape(np.asarray(phi_data), [T, 1, self.n_basis + 1])
+        phi_in_column = np.reshape(np.asarray(phi_data), [T, self.n_basis + 1, 1])
+
+        weights_num = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(out_data_3d, phi_in_row), 0)
+        weights_den = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(phi_in_column, phi_in_row), 0)
+        return [weights_num, weights_den, cov_num, cov_den]
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.maximize_emission_elements, zip(data_set, gamma_set))
+        # for _n in range(len(data_set)):
+        #     _data = data_set[_n]
+        #     _gamma = gamma_set[_n]
+        #     _out = self.maximize_emission_elements([_data, _gamma])
+        w_num = sum([_out[i][0] for i in range(len(_out))])
+        w_den = sum([_out[i][1] for i in range(len(_out))])
+        c_num = sum([_out[i][2] for i in range(len(_out))])
+        c_den = sum([_out[i][3] for i in range(len(_out))])
+        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
+
+    def give_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return normal_prob(y1, mu, self.covariance)
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return log_normal_prob(y1, mu, self.covariance)
+
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
@@ -115,6 +231,7 @@ class Quadratic_Dynamic(object):
         _phi = self.compute_phi_vect(np.zeros(n_dim))
         self.n_basis = len(_phi) - 1
         self.weights = np.zeros([self.n_dim, self.n_basis + 1])
+        self.covariance = np.eye(self.n_dim)
 
     def compute_phi_vect(self, x):
         '''
@@ -143,7 +260,7 @@ class Quadratic_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        return np.cov(np.transpose(err_set))
+        self.covariance = np.cov(np.transpose(err_set))
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -159,6 +276,62 @@ class Quadratic_Dynamic(object):
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
         self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
 
+    def maximize_emission_elements(self, in_arg):
+        '''
+        Perform the maximization step for the EM algorithm (for a single data stream)
+        '''
+        data = in_arg[0]
+        gamma_s = in_arg[1]
+        in_data = data[:-1]
+        out_data = data[1:]
+        T = np.shape(out_data)[0]
+        phi_data = []
+        expected_out_data = []
+        for _, _in in enumerate(in_data):
+            phi_data.append(self.compute_phi_vect(_in))
+            expected_out_data.append(self.apply_vector_field(_in))
+        expected_out_data = np.asarray(expected_out_data)
+
+        ## Covariance matrix update
+        err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+        err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+        cov_err = np.matmul(err, err_t)
+        cov_num = np.sum(cov_err * np.reshape(gamma_s, [T, 1, 1]), 0)
+        cov_den = np.sum(gamma_s)
+
+        ## Weights update
+        out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+        phi_in_row = np.reshape(np.asarray(phi_data), [T, 1, self.n_basis + 1])
+        phi_in_column = np.reshape(np.asarray(phi_data), [T, self.n_basis + 1, 1])
+
+        weights_num = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(out_data_3d, phi_in_row), 0)
+        weights_den = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(phi_in_column, phi_in_row), 0)
+        return [weights_num, weights_den, cov_num, cov_den]
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.maximize_emission_elements, zip(data_set, gamma_set))
+        # for _n in range(len(data_set)):
+        #     _data = data_set[_n]
+        #     _gamma = gamma_set[_n]
+        #     _out = self.maximize_emission_elements([_data, _gamma])
+        w_num = sum([_out[i][0] for i in range(len(_out))])
+        w_den = sum([_out[i][1] for i in range(len(_out))])
+        c_num = sum([_out[i][2] for i in range(len(_out))])
+        c_den = sum([_out[i][3] for i in range(len(_out))])
+        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
+
+    def give_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return normal_prob(y1, mu, self.covariance)
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return log_normal_prob(y1, mu, self.covariance)
+
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
@@ -169,6 +342,7 @@ class Cubic_Dynamic(object):
         _phi = self.compute_phi_vect(np.zeros(n_dim))
         self.n_basis = len(_phi) - 1
         self.weights = np.zeros([self.n_dim, self.n_basis + 1])
+        self.covariance = np.eye(self.n_dim)
 
     def compute_phi_vect(self, x):
         '''
@@ -196,7 +370,7 @@ class Cubic_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        return np.cov(np.transpose(err_set))
+        self.covariance = np.cov(np.transpose(err_set))
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -211,6 +385,62 @@ class Cubic_Dynamic(object):
             phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
         self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+
+    def maximize_emission_elements(self, in_arg):
+        '''
+        Perform the maximization step for the EM algorithm (for a single data stream)
+        '''
+        data = in_arg[0]
+        gamma_s = in_arg[1]
+        in_data = data[:-1]
+        out_data = data[1:]
+        T = np.shape(out_data)[0]
+        phi_data = []
+        expected_out_data = []
+        for _, _in in enumerate(in_data):
+            phi_data.append(self.compute_phi_vect(_in))
+            expected_out_data.append(self.apply_vector_field(_in))
+        expected_out_data = np.asarray(expected_out_data)
+
+        ## Covariance matrix update
+        err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+        err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+        cov_err = np.matmul(err, err_t)
+        cov_num = np.sum(cov_err * np.reshape(gamma_s, [T, 1, 1]), 0)
+        cov_den = np.sum(gamma_s)
+
+        ## Weights update
+        out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+        phi_in_row = np.reshape(np.asarray(phi_data), [T, 1, self.n_basis + 1])
+        phi_in_column = np.reshape(np.asarray(phi_data), [T, self.n_basis + 1, 1])
+
+        weights_num = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(out_data_3d, phi_in_row), 0)
+        weights_den = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(phi_in_column, phi_in_row), 0)
+        return [weights_num, weights_den, cov_num, cov_den]
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.maximize_emission_elements, zip(data_set, gamma_set))
+        # for _n in range(len(data_set)):
+        #     _data = data_set[_n]
+        #     _gamma = gamma_set[_n]
+        #     _out = self.maximize_emission_elements([_data, _gamma])
+        w_num = sum([_out[i][0] for i in range(len(_out))])
+        w_den = sum([_out[i][1] for i in range(len(_out))])
+        c_num = sum([_out[i][2] for i in range(len(_out))])
+        c_den = sum([_out[i][3] for i in range(len(_out))])
+        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
+
+    def give_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return normal_prob(y1, mu, self.covariance)
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))

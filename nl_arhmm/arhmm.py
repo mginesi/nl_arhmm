@@ -24,12 +24,10 @@ class ARHMM(object):
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
         self.dynamics = dynamics
-        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
 
     def permute_order(self, permutation):
         self.initial = self.initial[permutation]
         self.dynamics = self.dynamics[permutation]
-        self.sigma_set = self.sigma_set[permutation]
         self.transition = self.transition[permutation, :][:, permutation]
         return
 
@@ -74,7 +72,7 @@ class ARHMM(object):
             input_set = data_complete[np.where(km.labels_ == _m)[0], self.n_dim:]
             output_set = input_set + data_complete[np.where(km.labels_ == _m)[0], :self.n_dim]
             self.dynamics[_m].learn_vector_field(input_set, output_set)
-            self.sigma_set[_m] = self.dynamics[_m].estimate_cov_mtrx(input_set, output_set)
+            self.dynamics[_m].estimate_cov_mtrx(input_set, output_set)
 
         # Estimate of initial density
         _init = np.zeros(self.n_modes)
@@ -182,7 +180,9 @@ class ARHMM(object):
             # Maximization Step
             self.maximize_initial(gamma_stream)
             self.maximize_transition(gamma_stream, xi_stream)
-            self.maximize_emissions(gamma_stream, data_set)
+            for _s in range(self.n_modes):
+                gamma_set = [gamma_stream[_d][:, _s] for _d in range(len(data_set))]
+                self.dynamics[_s].maximize_emission(data_set, gamma_set)
 
             # Compute the forward variables and the rescaling terms
             logprob_future_stream = pool.map(self.compute_log_probability, data_set)
@@ -200,13 +200,13 @@ class ARHMM(object):
 
         return
 
-    def give_prob_of_next_step(self, y0, y1, mode):
-        mu = self.dynamics[mode].apply_vector_field(y0)
-        return normal_prob(y1, mu, self.sigma_set[mode])
+    # def give_prob_of_next_step(self, y0, y1, mode):
+    #     mu = self.dynamics[mode].apply_vector_field(y0)
+    #     return normal_prob(y1, mu, self.sigma_set[mode])
 
-    def give_log_prob_of_next_step(self, y0, y1, mode):
-        mu = self.dynamics[mode].apply_vector_field(y0)
-        return log_normal_prob(y1, mu, self.sigma_set[mode])
+    # def give_log_prob_of_next_step(self, y0, y1, mode):
+    #     mu = self.dynamics[mode].apply_vector_field(y0)
+    #     return log_normal_prob(y1, mu, self.sigma_set[mode])
 
     def set_up_dynamic_guess(self, in_data, out_data):
         '''
@@ -218,7 +218,7 @@ class ARHMM(object):
             _in_set = in_data[_m * t_seg:(_m + 1) * t_seg]
             _out_set = out_data[_m * t_seg:(_m + 1) * t_seg]
             self.dynamics[_m].learn_vector_field(_in_set, _out_set)
-            self.sigma_set[_m] = self.dynamics[_m].estimate_cov_mtrx(_in_set, _out_set)
+            self.dynamics[_m].estimate_cov_mtrx(_in_set, _out_set)
 
     def simulate(self, y0=None, T=100):
         if y0 is None:
@@ -229,7 +229,7 @@ class ARHMM(object):
         state_seq = [_y]
         for _t in range(T):
             _y = self.dynamics[_mode].apply_vector_field(_y) + \
-                np.dot(self.sigma_set[_mode], np.random.randn(self.n_dim))
+                np.dot(self.dynamics[_mode].covariance, np.random.randn(self.n_dim))
             state_seq.append(_y)
             _mode = self.transition.sample(_mode)
             mode_seq.append(_mode)
@@ -246,10 +246,10 @@ class ARHMM(object):
         T = len(data_stream) - 1
         T_1 = np.zeros([T, self.n_modes])
         T_2 = np.zeros([T, self.n_modes])
-        
+
         # Compute the basis of recursion
         for _s in range(self.n_modes):
-            T_1[0][_s] = self.give_log_prob_of_next_step(data_stream[0], data_stream[1], _s) + \
+            T_1[0][_s] = self.dynamics[_s].give_log_prob_of_next_step(data_stream[0], data_stream[1]) + \
                 self.initial.loginit[_s]
             # T_2[0] = 0.0
 
@@ -258,7 +258,7 @@ class ARHMM(object):
         for _t in range(1, T):
             for _s in range(self.n_modes):
                 to_maximize = T_1[_t - 1] + self.transition.logtrans[:, _s] + \
-                    self.give_log_prob_of_next_step(data_stream[_t], data_stream[_t + 1], _s)
+                    self.dynamics[_s].give_log_prob_of_next_step(data_stream[_t], data_stream[_t + 1])
                 _max = np.max(to_maximize)
                 _argmax = np.where(to_maximize == _max)[0][0]
                 T_1[_t, _s] = copy.deepcopy(_max)
@@ -285,7 +285,7 @@ class ARHMM(object):
             for _m in range(self.n_modes):
                 _logp[_m] = log_normal_prob(_data[_t + 1],
                             self.dynamics[_m].apply_vector_field(_data[_t]),
-                            self.sigma_set[_m])
+                            self.dynamics[_m].covariance)
             logp_future.append(copy.deepcopy(_logp))
         return logp_future
 
@@ -376,70 +376,70 @@ class ARHMM(object):
         self.transition.trans_mtrx = normalize_rows(num / (np.reshape(den, [self.n_modes, 1]) + self.correction) + self.correction)
         self.transition.logtrans = np.log(self.transition.trans_mtrx)
 
-    def maximize_emissions_components(self,_in):
-        gamma = _in[0]
-        data = _in[1]
-        in_data = data[:-1]
-        out_data = data[1:]
-        T = len(out_data)
-        out_data = np.asarray(out_data)
-        cov_num = [0 for _s in range(self.n_modes)]
-        cov_den = [0 for _s in range(self.n_modes)]
-        weights_num = [0 for _s in range(self.n_modes)]
-        weights_den = [0 for _s in range(self.n_modes)]
-        for _s in range(self.n_modes):
-            phi_in_data = []
-            # FIXME can be parallelized
-            for _, _in in enumerate(in_data):
-                phi_in_data.append(self.dynamics[_s].compute_phi_vect(_in))
-            dim_phi_data = phi_in_data[0].size
-            # Covariance Matrix "update"
-            expected_out_data = []
-            for _, _in in enumerate(in_data):
-                expected_out_data.append(self.dynamics[_s].apply_vector_field(_in))
-            expected_out_data = np.asarray(expected_out_data)
-            _gamma = gamma[:, _s]
-            err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
-            err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
-            cov_err = np.matmul(err, err_t)
-            cov_num[_s] = np.sum(cov_err * np.reshape(_gamma, [T, 1, 1]), 0)
-            cov_den[_s] = np.sum(_gamma)
+    # def maximize_emissions_components(self,_in):
+    #     gamma = _in[0]
+    #     data = _in[1]
+    #     in_data = data[:-1]
+    #     out_data = data[1:]
+    #     T = len(out_data)
+    #     out_data = np.asarray(out_data)
+    #     cov_num = [0 for _s in range(self.n_modes)]
+    #     cov_den = [0 for _s in range(self.n_modes)]
+    #     weights_num = [0 for _s in range(self.n_modes)]
+    #     weights_den = [0 for _s in range(self.n_modes)]
+    #     for _s in range(self.n_modes):
+    #         phi_in_data = []
+    #         # FIXME can be parallelized
+    #         for _, _in in enumerate(in_data):
+    #             phi_in_data.append(self.dynamics[_s].compute_phi_vect(_in))
+    #         dim_phi_data = phi_in_data[0].size
+    #         # Covariance Matrix "update"
+    #         expected_out_data = []
+    #         for _, _in in enumerate(in_data):
+    #             expected_out_data.append(self.dynamics[_s].apply_vector_field(_in))
+    #         expected_out_data = np.asarray(expected_out_data)
+    #         _gamma = gamma[:, _s]
+    #         err = np.reshape(out_data - expected_out_data, [T, self.n_dim, 1])
+    #         err_t = np.reshape(out_data - expected_out_data, [T, 1, self.n_dim])
+    #         cov_err = np.matmul(err, err_t)
+    #         cov_num[_s] = np.sum(cov_err * np.reshape(_gamma, [T, 1, 1]), 0)
+    #         cov_den[_s] = np.sum(_gamma)
 
-            # Dynamics' weight "update"
-            out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
-            phi_in_row = np.reshape(np.asarray(phi_in_data), [T, 1, dim_phi_data])
-            phi_in_column = np.reshape(np.asarray(phi_in_data), [T, dim_phi_data, 1])
-            weights_num[_s] = np.sum(
-                np.reshape(_gamma, [T, 1, 1]) * np.matmul(out_data_3d, phi_in_row), 0)
-            weights_den[_s] = np.sum(
-                np.reshape(_gamma, [T, 1, 1]) * np.matmul(phi_in_column, phi_in_row), 0)
-        return [weights_num, weights_den, cov_num, cov_den]
+    #         # Dynamics' weight "update"
+    #         out_data_3d = np.reshape(np.asarray(out_data), [T, self.n_dim, 1])
+    #         phi_in_row = np.reshape(np.asarray(phi_in_data), [T, 1, dim_phi_data])
+    #         phi_in_column = np.reshape(np.asarray(phi_in_data), [T, dim_phi_data, 1])
+    #         weights_num[_s] = np.sum(
+    #             np.reshape(_gamma, [T, 1, 1]) * np.matmul(out_data_3d, phi_in_row), 0)
+    #         weights_den[_s] = np.sum(
+    #             np.reshape(_gamma, [T, 1, 1]) * np.matmul(phi_in_column, phi_in_row), 0)
+    #     return [weights_num, weights_den, cov_num, cov_den]
 
-    def maximize_emissions(self, gamma_set, data_set):
-        # Initialize the needed arrays (which sum over k)
-        # For each mode we need two matrices for the weights,
-        # and a matrix and a scalar for the covariance
-        pool = multiprocessing.Pool()
-        _out = pool.map(self.maximize_emissions_components, zip(gamma_set, data_set))
-        weights_num = [_out[i][0] for i in range(len(_out))]
-        weights_den = [_out[i][1] for i in range(len(_out))]
-        cov_num = [_out[i][2] for i in range(len(_out))]
-        cov_den = [_out[i][3] for i in range(len(_out))]
-        omega_num = [np.zeros([self.n_dim, self.dynamics[0].n_basis + 1])
-                        for s in range(self.n_modes)]
-        omega_den = [np.zeros([self.dynamics[0].n_basis + 1, self.dynamics[0].n_basis + 1])
-                        for s in range(self.n_modes)]
-        sigma_num = [np.zeros([self.n_dim, self.n_dim]) for _s in range(self.n_modes)]
-        sigma_den = [0 for _s in range(self.n_modes)]
-        for k in range(len(data_set)):
-            for _s in range(self.n_modes):
-                omega_num[_s] += weights_num[k][_s]
-                omega_den[_s] += weights_den[k][_s]
-                sigma_num[_s] += cov_num[k][_s]
-                sigma_den[_s] += cov_den[k][_s]
-        for _s in range(self.n_modes):
-            self.dynamics[_s].weights = np.dot(omega_num[_s], np.linalg.pinv(omega_den[_s]))
-            self.sigma_set[_s] = sigma_num[_s] / (sigma_den[_s] + self.correction) + self.correction * np.eye(self.n_dim)
+    # def maximize_emissions(self, gamma_set, data_set):
+    #     # Initialize the needed arrays (which sum over k)
+    #     # For each mode we need two matrices for the weights,
+    #     # and a matrix and a scalar for the covariance
+    #     pool = multiprocessing.Pool()
+    #     _out = pool.map(self.maximize_emissions_components, zip(gamma_set, data_set))
+    #     weights_num = [_out[i][0] for i in range(len(_out))]
+    #     weights_den = [_out[i][1] for i in range(len(_out))]
+    #     cov_num = [_out[i][2] for i in range(len(_out))]
+    #     cov_den = [_out[i][3] for i in range(len(_out))]
+    #     omega_num = [np.zeros([self.n_dim, self.dynamics[0].n_basis + 1])
+    #                     for s in range(self.n_modes)]
+    #     omega_den = [np.zeros([self.dynamics[0].n_basis + 1, self.dynamics[0].n_basis + 1])
+    #                     for s in range(self.n_modes)]
+    #     sigma_num = [np.zeros([self.n_dim, self.n_dim]) for _s in range(self.n_modes)]
+    #     sigma_den = [0 for _s in range(self.n_modes)]
+    #     for k in range(len(data_set)):
+    #         for _s in range(self.n_modes):
+    #             omega_num[_s] += weights_num[k][_s]
+    #             omega_den[_s] += weights_den[k][_s]
+    #             sigma_num[_s] += cov_num[k][_s]
+    #             sigma_den[_s] += cov_den[k][_s]
+    #     for _s in range(self.n_modes):
+    #         self.dynamics[_s].weights = np.dot(omega_num[_s], np.linalg.pinv(omega_den[_s]))
+    #         self.sigma_set[_s] = sigma_num[_s] / (sigma_den[_s] + self.correction) + self.correction * np.eye(self.n_dim)
 
     # --------------------------------------------------------------------------------------- #
     #              Subfunction for the "Learn with observed modes" part.                      #
@@ -478,7 +478,6 @@ class GRBF_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
-        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
             self.dynamics.append(GRBF_Dynamic(self.n_dim, dyn_center[_m], dyn_widths[_m]))
@@ -497,7 +496,6 @@ class Linear_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
-        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
             self.dynamics.append(Linear_Dynamic(self.n_dim))
@@ -516,7 +514,6 @@ class Quadratic_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
-        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
             self.dynamics.append(Quadratic_Dynamic(self.n_dim))
@@ -535,7 +532,6 @@ class Cubic_ARHMM(ARHMM):
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
-        self.sigma_set = [np.eye(self.n_dim) for _ in range(self.n_modes)]
         self.dynamics = []
         for _m in range(self.n_modes):
             self.dynamics.append(Cubic_Dynamic(self.n_dim))

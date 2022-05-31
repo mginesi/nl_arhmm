@@ -1,5 +1,6 @@
 import numpy as np
 from nl_arhmm.arhmm import Linear_ARHMM
+from nl_arhmm.arhmm import Quadratic_ARHMM
 from nl_arhmm.transition import Transition
 from nl_arhmm.initial import Initial
 import matplotlib.pyplot as plt
@@ -40,8 +41,8 @@ for _n in range(2):
 model_true = Linear_ARHMM(2, 2)
 model_true.dynamics[0].weights = dyn_mtrxs[0]
 model_true.dynamics[1].weights = dyn_mtrxs[1]
-model_true.sigma_set[0] = sigmas[0]
-model_true.sigma_set[1] = sigmas[1]
+model_true.dynamics[0].covariance = sigmas[0]
+model_true.dynamics[1].covariance = sigmas[1]
 trans = Transition(2, np.array([[0.95, 0.05], [0.1, 0.9]]))
 model_true.transition = trans
 init = Initial(2, np.array([0.5, 0.5]))
@@ -77,8 +78,8 @@ print(model_true.transition.trans_mtrx)
 print("Vector field")
 print(model_true.dynamics[0].weights)
 print(model_true.dynamics[1].weights)
-print(model_true.sigma_set[0])
-print(model_true.sigma_set[1])
+print(model_true.dynamics[0].covariance)
+print(model_true.dynamics[1].covariance)
 
 print(" --  Inferred Model  -- ")
 print("Initial density")
@@ -88,8 +89,8 @@ print(model.transition.trans_mtrx)
 print("Vector field")
 print(model.dynamics[0].weights)
 print(model.dynamics[1].weights)
-print(model.sigma_set[0])
-print(model.sigma_set[1])
+print(model.dynamics[0].covariance)
+print(model.dynamics[1].covariance)
 
 # ---  Plotting  ---
 plt.figure()
