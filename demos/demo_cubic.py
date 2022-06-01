@@ -1,104 +1,122 @@
+# ========================== #
+#    ===  CODE SETUP  ===    #
+# ========================== #
+
 import numpy as np
-from nl_arhmm.dynamic import Cubic_Dynamic
-from nl_arhmm.dynamic import GRBF_Dynamic
+
+from dataset.panda import panda as panda_dataset
+from dataset.jigsaw import jigsaw as jigsaw_dataset
+from dataset.davinci_pr import home as davinci_dataset
+
+from dataset.preprocessing import normalize_data
+
+from nl_arhmm.arhmm import Linear_ARHMM
+from nl_arhmm.arhmm import Quadratic_ARHMM
 from nl_arhmm.arhmm import Cubic_ARHMM
-from nl_arhmm.transition import Transition
+
+# --- Plotting stuff --- #
+from matplotlib import rc
 import matplotlib.pyplot as plt
 
-## Real dynamics
-def vf_stable(x):
-    x1 = x[0]
-    x2 = x[1]
-    f1 = x1 ** 3 + x2 ** 2 * x1 - x1 - x2
-    f2 = x2 ** 3 + x1 ** 2 * x2 + x1 - x2
-    return np.array([f1, f2])
+fs = 14
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica'],
+    'size':fs})
+rc('text', usetex=True)
 
-def vf_omega_lim(x):
-    x1 = x[0]
-    x2 = x[1]
-    f1 = x1 ** 3 + x2 ** 2 * x1 - x1 - x2
-    f2 = x2 ** 3 + x1 ** 2 * x2 + x1 - x2
-    return - np.array([f1, f2])
+import matplotlib as mpl
+from matplotlib import colors
+cmap = colors.ListedColormap(['tab:purple', 'yellow', 'tab:green', 'tab:red', 'tab:blue', 'tab:orange'])
+bounds = [0, 1, 2, 3, 4, 5]
+norm = colors.BoundaryNorm(bounds, cmap.N)
 
-## Setting of the real parameters
-initial_distr = np.array([0.5, 0.5])
-trans_mtrx = np.array([[0.8, 0.2],
-                       [0.2, 0.8]])
+# ================================ #
+#    ===  MODEL DEFINITION  ===    #
+# ================================ #
 
-# Generation of the dynamics
-rho = np.linspace(0.0, 1.0, 3)
-theta = np.linspace(0.0, 2.0 * np.pi, 9)
-theta = theta[:-1]
-centers = np.zeros([24, 2])
-for _rho in range(3):
-    for _theta in range(8):
-        centers[8 * _rho + _theta, 0] = _rho * np.cos(_theta)
-        centers[8 * _rho + _theta, 1] = _rho * np.sin(_theta)
-dyn_st = Cubic_Dynamic(2)
-dyn_ol = Cubic_Dynamic(2)
+dt = 1.0 / 20
 
-# Creating the data sample to infer the dynamics
-data_in = []
-data_out_stable = []
-data_out_omega_lim = []
-dt = 0.1
-for _ in range(500):
-    _rho = np.random.rand()
-    _theta = np.random.rand() * 2.0 * np.pi
-    _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
-    data_in.append(_in)
-    data_out_stable.append(_in + dt * vf_stable(_in))
-    data_out_omega_lim.append(_in + dt * vf_omega_lim(_in))
+def vf(x):
+    return np.array([
+        x[0] ** 3 + x[1] ** 2 * x[0] - x[0] - x[1],
+        x[1] ** 3 + x[0] ** 2 * x[1] + x[0] - x[1],
+    ])
 
-dyn_st.learn_vector_field(data_in, data_out_stable)
-dyn_ol.learn_vector_field(data_in, data_out_omega_lim)
+def alpha_vf(x):
+    return x + dt * vf(x)
 
-# Creating the NL - ARHMM
-model = Cubic_ARHMM(2, 2)
-model.dynamics[0].weights = dyn_st.weights
-model.dynamics[1].weights = dyn_ol.weights
-model.dynamics[0].covariance = 0.01 * np.eye(2)
-model.dynamics[1].covariance = 0.01 * np.eye(2)
+def omega_vf(x):
+    return x - dt * vf(x)
 
-trans = Transition(2, np.array([[0.95, 0.05], [0.05, 0.95]]))
-model.transition = trans
+x_in = []
+x_out_alpha = []
+x_out_omega = []
+for _ in range(100):
+    _r = np.random.rand()
+    _theta = np.random.rand() * 2 * np.pi
+    _x = np.array([_r * np.cos(_theta), _r * np.sin(_theta)])
+    x_in.append(_x)
+    x_out_alpha.append(alpha_vf(_x))
+    x_out_omega.append(omega_vf(_x))
 
-T = 200
-state = []
-mode_true = []
-num_signal = 20
-for _ in range(num_signal):
-    _rho = np.random.rand()
-    _theta = np.random.rand() * 2.0 * np.pi
-    _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
-    [_state, _mode_true] = model.simulate(_in, T)
-    state.append(np.nan_to_num(_state))
-    mode_true.append(_mode_true)
+model_true = Quadratic_ARHMM(2, 2)
+model_true.dynamics[0].learn_vector_field(x_in, x_out_alpha)
+model_true.dynamics[1].learn_vector_field(x_in, x_out_omega)
+model_true.initial.density = np.array([0.5, 0.5])
+model_true.initial.loginit = np.log(model_true.initial.density)
+model_true.transition.trans_mtrx = np.array([[0.95, 0.05], [0.05, 0.95]])
+model_true.transition.logtrans = np.log(model_true.transition.trans_mtrx)
+err_std = 0.01
+model_true.dynamics[0].covariance = err_std * np.eye(model_true.n_dim)
+model_true.dynamics[1].covariance = err_std * np.eye(model_true.n_dim)
+print(model_true.dynamics[0].covariance)
+print(model_true.dynamics[1].covariance)
+out_set = [model_true.simulate(np.random.rand(2)/1.5, 100) for _ in range(50)]
+data_set = [out_set[_n][0] for _n in range(len(out_set))]
+label_set = [out_set[_n][1] for _n in range(len(out_set))]
 
-mode_inferred = model.viterbi(state[0])
+label_true = model_true.viterbi(data_set[0])
 
-model.initialize(state, use_pos=True)
-model.em_algorithm(state)
+data_set_standard = normalize_data(data_set)
 
-mode_inferred_em = model.viterbi(state[0])
+## Model testing
 
-plt.figure()
-plt.subplot(311)
-plt.imshow(np.array([mode_true[0]]), aspect='auto')
-plt.subplot(312)
-plt.imshow(np.array([mode_inferred]), aspect='auto')
-plt.subplot(313)
-plt.imshow(np.array([mode_inferred_em]), aspect='auto')
+model_cub = Cubic_ARHMM(2, 2)
+model_lin = Linear_ARHMM(2, 2)
 
-plt.figure()
-plt.subplot(211)
-plt.plot(state[0][:, 0], 'r')
-plt.xlim(0, len(state[0][:,0]) - 1)
-plt.subplot(212)
-plt.plot(state[0][:, 1], 'g')
-plt.xlim(0, len(state[0][:,0]) - 1)
+model_cub.initialize(data_set_standard, use_pos=False, use_diff=True)
+model_lin.initialize(data_set_standard, use_pos=False, use_diff=True)
 
-plt.figure()
-plt.plot(state[0][:,0], state[0][:,1])
+model_cub.em_algorithm(data_set_standard)
+model_lin.em_algorithm(data_set_standard)
 
+print(model_cub.dynamics[0].covariance)
+print(model_cub.dynamics[1].covariance)
+
+label_cub = model_cub.viterbi(data_set_standard[0])
+label_lin = model_lin.viterbi(data_set_standard[0])
+
+fig = plt.figure()
+ax1 = plt.subplot2grid((8, 1), (0, 0), rowspan=5)
+ax1.plot(data_set_standard[0][:, 0])
+ax1.plot(data_set_standard[0][:, 1])
+ax1.set_xlim(0, data_set_standard[0].shape[0])
+frame1 = plt.gca()
+frame1.axes.xaxis.set_ticklabels([])
+ax2 = plt.subplot2grid((8, 1), (5, 0), rowspan=1)
+ax2.imshow(np.array([label_set[0]]), aspect='auto', cmap=cmap, norm=norm, interpolation='None')
+frame1 = plt.gca()
+frame1.axes.xaxis.set_ticklabels([])
+frame1.axes.yaxis.set_ticklabels([])
+ax3 = plt.subplot2grid((8, 1), (6, 0), rowspan=1)
+ax3.imshow(np.array([label_lin]), aspect='auto', cmap=cmap, norm=norm, interpolation='None')
+frame1 = plt.gca()
+frame1.axes.xaxis.set_ticklabels([])
+frame1.axes.yaxis.set_ticklabels([])
+ax4 = plt.subplot2grid((8, 1), (7, 0), rowspan=1)
+ax4.imshow(np.array([label_cub]), aspect='auto', cmap=cmap, norm=norm, interpolation='None')
+frame1 = plt.gca()
+# frame1.axes.xaxis.set_ticklabels([])
+frame1.axes.yaxis.set_ticklabels([])
+ax4.set_xlabel(r"$t$")
+# plt.savefig("imgs/validation_test_errstd" + str(err_std) + "_test8.png", dpi=600, bbox_inches='tight', pad_inches=0.1)
 plt.show()
