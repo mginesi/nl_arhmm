@@ -445,6 +445,51 @@ class Cubic_Dynamic(object):
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
+#──────────────────────────────#
+# DECOUPLED OBSERVED VARIABLES #
+#──────────────────────────────#
+
+class Linear_Hand_Quadratic_Gripper(object):
+
+    def __init__(self, n_hand):
+        self.n_hand = n_hand
+        self.n_dim = 4 * self.n_hand
+        self.n_basis = 9 * n_hand + 4 * n_hand
+        self.weights_hand = [np.random.rand(3,4) for _ in range(self.n_hand)]
+        self.weights_gripper = [np.random.rand(4) for _ in range(self.n_hand)]
+        self.covariance_hand = [np.eye(3) * 0.1 for _ in range(self.n_hand)]
+        self.covariance_gripper = [0.1 for _ in range(self.n_hand)]
+        return
+
+    def compute_phi_vect(self, x):
+        return [[np.concatenate([x[_h * 4 : _h*4 + 3]]), x[_h*4 + 3]] for _h in range(self.n_hand)]
+
+    def estimate_cov_mtrx(self, input_set, output_set):
+        return
+
+    def learn_vector_field(self, input_set, output_set, weights=None):
+        return
+
+    def maximize_emission_elements(self, in_arg):
+        return
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        return
+
+    def give_prob_of_netx_step(self, y0, y1):
+        return
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        return
+
+    def apply_vector_field(self, x):
+        x_next = np.zeros(4 * self.n_hand)
+        phi = self.compute_phi_vect(x)
+        for _h in range(self.n_hand)
+            x_next[_h * 4 : _h * 4 + 3] = np.dot(self.weights_hand[_h], phi[_h][0])
+            x_next[_h * 4 + 3] = np.dot(self.weights_gripper[_h], phi[_h][1])
+        return x_next
+
 # ------------------------------------------------------------------------------------------- #
 #                                           Demo                                              #
 # ------------------------------------------------------------------------------------------- #
