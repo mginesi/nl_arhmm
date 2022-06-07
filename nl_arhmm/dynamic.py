@@ -465,22 +465,28 @@ class Linear_Hand_Quadratic_Gripper(object):
         return [[np.concatenate([x[_h * 4 : _h*4 + 3]]), x[_h*4 + 3]] for _h in range(self.n_hand)]
 
     def estimate_cov_mtrx(self, input_set, output_set):
+        # TODO
         return
 
     def learn_vector_field(self, input_set, output_set, weights=None):
+        # TODO
         return
 
     def maximize_emission_elements(self, in_arg):
+        # TODO
         return
 
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        # TODO
         return
 
     def give_prob_of_netx_step(self, y0, y1):
-        return
+        mu = self.apply_vector_field(y0)
+        return normal_prob(y1, mu, self.covariance)
 
     def give_log_prob_of_next_step(self, y0, y1):
-        return
+        mu = self.apply_vector_field(y0)
+        return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
         x_next = np.zeros(4 * self.n_hand)
