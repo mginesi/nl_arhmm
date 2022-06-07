@@ -143,7 +143,9 @@ class ARHMM(object):
         # distribution
 
         gamma_set = pool.map(self._learn_give_gamma_dirac, mode_set)
-        self.maximize_emissions(gamma_set, data_set)
+        for _s in range(self.n_modes):
+                gamma_set = [gamma_stream[_d][:, _s] for _d in range(len(data_set))]
+                self.dynamics[_s].maximize_emission(data_set, gamma_set)
 
     def em_algorithm(self, data_set, tol = 0.05, max_iter = 10,verbose=True):
         '''
