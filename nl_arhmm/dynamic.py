@@ -491,7 +491,7 @@ class Linear_Hand_Quadratic_Gripper(object):
     def apply_vector_field(self, x):
         x_next = np.zeros(4 * self.n_hand)
         phi = self.compute_phi_vect(x)
-        for _h in range(self.n_hand)
+        for _h in range(self.n_hand):
             x_next[_h * 4 : _h * 4 + 3] = np.dot(self.weights_hand[_h], phi[_h][0])
             x_next[_h * 4 + 3] = np.dot(self.weights_gripper[_h], phi[_h][1])
         return x_next
