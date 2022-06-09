@@ -462,18 +462,54 @@ class Linear_Hand_Quadratic_Gripper(object):
         return
 
     def compute_phi_vect(self, x):
-        return [[np.concatenate([x[_h * 4 : _h*4 + 3]]), x[_h*4 + 3]] for _h in range(self.n_hand)]
+        return [[np.array([x[_h * 4 : _h*4 + 3]]), x[_h*4 + 3]] for _h in range(self.n_hand)]
 
     def estimate_cov_mtrx(self, input_set, output_set):
-        # TODO
+        pred_set = []
+        for _, _in in enumerate(input_set):
+            pred_set.append(self.apply_vector_field(_in))
+        pred_set = np.asarray(pred_set)
+        out_set = np.asarray(output_set)
+        err_set = out_set - pred_set
+        for _h in range(self.n_hand):
+            self.covariance_hand[_h] = np.cov(np.transpose(err_set[_h*4:_h*4 + 3,:]))
+            self.covariance_gripper[_h] = np.var(err_set[_h*4 + 3])
         return
 
     def learn_vector_field(self, input_set, output_set, weights=None):
-        # TODO
+        n_data = len(input_set)
+        if weights is None:
+            weights = np.ones(n_data)
+        sqrt_weights = np.sqrt(np.asarray(weights))
+        for _h in range(self.n_hand):
+            # Cartesian position
+            phi_mat_pos = np.zeros([n_data, 4])
+            for _n in range(n_data):
+                phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][0] # 0 is for the hand
+            T_hand = np.asarray(output_set)[:, _h*4:_h*4+3] * np.reshape(sqrt_weights, [n_data , 1])
+            self.weights_hand[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat), T_hand))
+            # Gripper angle
+            phi_mat_angle = np.zeros([n_data, 1])
+            for _n in range(n_data):
+                phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][1] # 0 is for the hand
+            T_angle = np.asarray(output_set)[:, _h*4+3] * np.reshape(sqrt_weights, [n_data , 1])
+            self.weights_gripper[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat), T_angle))
         return
 
     def maximize_emission_elements(self, in_arg):
         # TODO
+        data = in_arg[0]
+        gamma_s = in_arg[1]
+        in_data = data[:-1]
+        out_data = data[1:]
+        expected_out = []
+        for _, _in in enumerate(in_data):
+            PHI = self.compute_phi_vect(_in)
+            expected_out.append(self.apply_vector_field(_in))
+        expected_out = np.asarray(expected_out)
+
+        # for loop along number of end-effectors
+        for _h in range(self.n_hand):
         return
 
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
