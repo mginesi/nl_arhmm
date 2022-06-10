@@ -502,14 +502,86 @@ class Linear_Hand_Quadratic_Gripper(object):
         gamma_s = in_arg[1]
         in_data = data[:-1]
         out_data = data[1:]
+        T = np.shape(out_data)[0]
         expected_out = []
+        PHI = []
         for _, _in in enumerate(in_data):
-            PHI = self.compute_phi_vect(_in)
+            PHI.append(self.compute_phi_vect(_in)) # PHI is a n_data x n_hand x 2 list
             expected_out.append(self.apply_vector_field(_in))
         expected_out = np.asarray(expected_out)
 
         # for loop along number of end-effectors
+        cov_num_h = []
+        cov_den_h = []
+        w_num_h = []
+        w_den_h = []
+        cov_num_g = []
+        cov_den_g = []
+        w_num_g = []
+        w_den_g = []
+
         for _h in range(self.n_hand):
+
+            #────────────────────#
+            # Cartesian position #
+            #────────────────────#
+
+            # Covariance matrix
+
+            _ex_out_h = expected_out[:, 4*_h : 4*_h + 3]
+            _out_h = out_data[:, 4*_h : 4*_h + 3]
+            _err_h = np.reshape(_out_h - _ex_out_h, [T, 3, 1])
+            _err_h_t = np.reshape(_out_h - _ex_out_h, [T, 1, 3])
+            _cov_err_h = np.matmul(_err_h, _err_h_t)
+            _cov_num_h = np.sum(_cov_err_h * np.reshape(gamma_s, [T, 1, 1]), 0)
+            _cov_den_h = np.sum(gamma_s)
+
+            # Weights
+
+            _out_h_3d = np.reshape(np.asarray(_out_h), [T, 3, 1])
+            _phi_h = []
+            for _n in range(len(PHI)):
+                _phi_h.append(PHI[_n][_h][0]) # 0 is for the hand
+            _phi_h_row = np.reshape(np.asarray(_phi_h), [T, 1, 4])
+            _phi_h_column = np.reshape(np.asarray(_phi_h), [T, 4, 1])
+
+            _w_num_h = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_h_3, _phi_h_row), 0
+                    )
+            _w_den_h = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_h_column, _phi_h_row), 0
+                    )
+
+            #───────────────#
+            # Gripper angle #
+            #───────────────#
+
+            # Covariance matrix
+
+            _ex_out_g = expected_out[:, 4*_h + 3]
+            _out_g = out_data[:, 4*_h + 3]
+            _err_g = np.reshape(_out_g - _ex_out_g, [T, 1, 1])
+            _err_g_t = np.reshape(_out_g - _ex_out_g, [T, 1, 1])
+            _cov_err_g = np.matmul(_err_g, _err_g_t)
+            _cov_num_g = np.sum(_cov_err_g * np.reshape(gamma_s, [T, 1, 1]), 0)
+            _cov_den_g = np.sum(gamma_s)
+
+            # Weights
+
+            _out_g_3d = np.reshape(np.asarray(_out_g), [T, 1, 1])
+            _phi_g = []
+            for _h in range(len(PHI)):
+                _phi_g.append(PHI[_n][_h][1]) # 1 is for the gripper
+            _phi_g_row = np.reshape(np.asarray(_phi_g), [T, 1, 3])
+            _phi_g_column = np.reshape(np.asarray(_phi_g), [T, 3, 1])
+
+            _w_num_g = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_g_3, _phi_g_row), 0
+                    )
+            _w_den_g = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_g_column, _phi_g_row), 0
+                    )
+
         return
 
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
