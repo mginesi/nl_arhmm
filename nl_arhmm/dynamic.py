@@ -497,7 +497,6 @@ class Linear_Hand_Quadratic_Gripper(object):
         return
 
     def maximize_emission_elements(self, in_arg):
-        # TODO
         data = in_arg[0]
         gamma_s = in_arg[1]
         in_data = data[:-1]
@@ -536,6 +535,9 @@ class Linear_Hand_Quadratic_Gripper(object):
             _cov_num_h = np.sum(_cov_err_h * np.reshape(gamma_s, [T, 1, 1]), 0)
             _cov_den_h = np.sum(gamma_s)
 
+            cov_num_h.append(_cov_num_h)
+            cov_den_h.append(_cov_den_h)
+
             # Weights
 
             _out_h_3d = np.reshape(np.asarray(_out_h), [T, 3, 1])
@@ -552,6 +554,9 @@ class Linear_Hand_Quadratic_Gripper(object):
                 np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_h_column, _phi_h_row), 0
                     )
 
+            w_num_h.append(_w_num_h)
+            w_den_h.append(_w_den_h)
+
             #───────────────#
             # Gripper angle #
             #───────────────#
@@ -565,6 +570,9 @@ class Linear_Hand_Quadratic_Gripper(object):
             _cov_err_g = np.matmul(_err_g, _err_g_t)
             _cov_num_g = np.sum(_cov_err_g * np.reshape(gamma_s, [T, 1, 1]), 0)
             _cov_den_g = np.sum(gamma_s)
+
+            cov_num_g.append(_cov_num_g)
+            cov_den_g.append(_cov_den_g)
 
             # Weights
 
@@ -582,10 +590,28 @@ class Linear_Hand_Quadratic_Gripper(object):
                 np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_g_column, _phi_g_row), 0
                     )
 
-        return
+            w_num_g.append(_w_num_g)
+            w_den_g.append(_w_den_g)
+
+        return [w_num_h, w_den_h, cov_num_h, cov_den_h, w_num_g, w_den_g, cov_num_g, cov_den_g]
 
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
         # TODO
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.maximize_emission_elements, zip(data_set, gamma_set))
+        for _h in range(self.n_hand):
+            w_num_h = sum([_out[i][0][_h] for i in range(len(_out))])
+            w_den_h = sum([_out[i][1][_h] for i in range(len(_out))])
+            c_num_h = sum([_out[i][2][_h] for i in range(len(_out))])
+            c_den_h = sum([_out[i][3][_h] for i in range(len(_out))])
+            w_num_g = sum([_out[i][4][_h] for i in range(len(_out))])
+            w_den_g = sum([_out[i][5][_h] for i in range(len(_out))])
+            c_num_g = sum([_out[i][6][_h] for i in range(len(_out))])
+            c_den_g = sum([_out[i][7][_h] for i in range(len(_out))])
+            self.weights_hand[_h] = np.dot(w_num_h, np.linalg.pinv(w_den_h))
+            self.covariance_hand[_h] = c_num_h / (c_den_h + correction) + correction * np.eye(3)
+            self.weights_gripper[_h] = np.dot(w_num_g, np.linalg.pinv(w_den_g))
+            self.covariance_gripper[_h] = c_num_g / (c_den_g + correction) + correction * np.eye(3)
         return
 
     def give_prob_of_netx_step(self, y0, y1):
