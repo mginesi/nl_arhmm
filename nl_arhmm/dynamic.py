@@ -114,6 +114,9 @@ class GRBF_Dynamic(object):
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
+    def simulate_step(self, x):
+        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+
 class Linear_Dynamic(object):
 
     def __init__(self, n_dim):
@@ -223,6 +226,9 @@ class Linear_Dynamic(object):
 
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
+
+    def simulate_step(self, x):
+        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
 
 class Quadratic_Dynamic(object):
 
@@ -335,6 +341,9 @@ class Quadratic_Dynamic(object):
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
+    def simulate_step(self, x):
+        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+
 class Cubic_Dynamic(object):
 
     def __init__(self, n_dim):
@@ -445,6 +454,9 @@ class Cubic_Dynamic(object):
     def apply_vector_field(self, x):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
+    def simulate_step(self, x):
+        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+
 #──────────────────────────────#
 # DECOUPLED OBSERVED VARIABLES #
 #──────────────────────────────#
@@ -462,7 +474,7 @@ class Linear_Hand_Quadratic_Gripper(object):
         return
 
     def compute_phi_vect(self, x):
-        return [[np.array([x[_h * 4 : _h*4 + 3]]), x[_h*4 + 3]] for _h in range(self.n_hand)]
+        return [[np.array([x[_h * 4], x[_h * 4 + 1], x[_h * 4 + 2], 1]), np.array([1, x[_h*4 + 3], x[_h*4 + 3] * x[_h*4 + 3]])] for _h in range(self.n_hand)]
 
     def estimate_cov_mtrx(self, input_set, output_set):
         pred_set = []
@@ -629,6 +641,13 @@ class Linear_Hand_Quadratic_Gripper(object):
             x_next[_h * 4 : _h * 4 + 3] = np.dot(self.weights_hand[_h], phi[_h][0])
             x_next[_h * 4 + 3] = np.dot(self.weights_gripper[_h], phi[_h][1])
         return x_next
+
+    def simulate_step(self, x):
+        covariance = np.zeros([4 * n_hand, 4*n_hand])
+        for _h in range(self.n_hand):
+            covariance[4*_h : 4*_h + 3] = self.covariance_hand[_h]
+            covariace[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
+        return self.apply_vector_field(x) + np.dot(covariante, np.random.randn(self.n_dim))
 
 # ------------------------------------------------------------------------------------------- #
 #                                           Demo                                              #

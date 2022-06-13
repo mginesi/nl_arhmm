@@ -230,7 +230,8 @@ class ARHMM(object):
         _y = copy.deepcopy(y0)
         state_seq = [_y]
         for _t in range(T):
-            _y = self.dynamics[_mode].apply_vector_field(_y) + \
+            _y = self.dynamics[_mode].simulate_step(_y)
+            self.dynamics[_mode].apply_vector_field(_y) + \
                 np.dot(self.dynamics[_mode].covariance, np.random.randn(self.n_dim))
             state_seq.append(_y)
             _mode = self.transition.sample(_mode)
@@ -470,3 +471,23 @@ class Cubic_ARHMM(ARHMM):
             self.dynamics.append(Cubic_Dynamic(self.n_dim))
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
+class Hand_Gripper_ARHMM(ARHMM):
+
+    def __init__(self, n_modes, n_hand=1, correction=1e-08):
+        '''
+        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
+        '''
+        from nl_arhmm.dynamic import Linear_Hand_Quadratic_Gripper
+
+        self.n_hand = n_hand
+        self.n_dim = 4 * self.n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Linear_Hand_Quadratic_Gripper(self.n_hand))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
