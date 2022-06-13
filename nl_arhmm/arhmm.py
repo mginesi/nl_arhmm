@@ -231,8 +231,6 @@ class ARHMM(object):
         state_seq = [_y]
         for _t in range(T):
             _y = self.dynamics[_mode].simulate_step(_y)
-            self.dynamics[_mode].apply_vector_field(_y) + \
-                np.dot(self.dynamics[_mode].covariance, np.random.randn(self.n_dim))
             state_seq.append(_y)
             _mode = self.transition.sample(_mode)
             mode_seq.append(_mode)

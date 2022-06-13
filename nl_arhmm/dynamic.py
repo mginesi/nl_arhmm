@@ -115,7 +115,7 @@ class GRBF_Dynamic(object):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
 
 class Linear_Dynamic(object):
 
@@ -228,7 +228,7 @@ class Linear_Dynamic(object):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
 
 class Quadratic_Dynamic(object):
 
@@ -342,7 +342,7 @@ class Quadratic_Dynamic(object):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
 
 class Cubic_Dynamic(object):
 
@@ -455,7 +455,7 @@ class Cubic_Dynamic(object):
         return np.dot(self.weights, self.compute_phi_vect(x))
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariante, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
 
 #──────────────────────────────#
 # DECOUPLED OBSERVED VARIABLES #
@@ -643,11 +643,11 @@ class Linear_Hand_Quadratic_Gripper(object):
         return x_next
 
     def simulate_step(self, x):
-        covariance = np.zeros([4 * n_hand, 4*n_hand])
+        covariance = np.zeros([4 * self.n_hand, 4*self.n_hand])
         for _h in range(self.n_hand):
-            covariance[4*_h : 4*_h + 3] = self.covariance_hand[_h]
-            covariace[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
-        return self.apply_vector_field(x) + np.dot(covariante, np.random.randn(self.n_dim))
+            covariance[4*_h : 4*_h + 3, 4*_h : 4*_h + 3] = self.covariance_hand[_h]
+            covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
+        return self.apply_vector_field(x) + np.dot(covariance, np.random.randn(self.n_dim))
 
 # ------------------------------------------------------------------------------------------- #
 #                                           Demo                                              #

@@ -65,7 +65,7 @@ model_true.initial.density = np.array([0.5, 0.5])
 model_true.initial.loginit = np.log(model_true.initial.density)
 model_true.transition.trans_mtrx = np.array([[0.95, 0.05], [0.05, 0.95]])
 model_true.transition.logtrans = np.log(model_true.transition.trans_mtrx)
-err_std = 0.01
+err_std = 0.005
 model_true.dynamics[0].covariance = err_std * np.eye(model_true.n_dim)
 model_true.dynamics[1].covariance = err_std * np.eye(model_true.n_dim)
 print(model_true.dynamics[0].covariance)
