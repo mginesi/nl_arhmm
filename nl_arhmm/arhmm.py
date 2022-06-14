@@ -284,9 +284,7 @@ class ARHMM(object):
         _logp = np.zeros(self.n_modes)
         for _t in range(T):
             for _m in range(self.n_modes):
-                _logp[_m] = log_normal_prob(_data[_t + 1],
-                            self.dynamics[_m].apply_vector_field(_data[_t]),
-                            self.dynamics[_m].covariance)
+                _logp[_m] = self.dynamics[_m].give_log_prob_of_next_step(_data[_t], _data[_t+1])
             logp_future.append(copy.deepcopy(_logp))
         return logp_future
 

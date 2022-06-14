@@ -44,6 +44,18 @@ print(model_0.dynamics[0].weights_gripper)
 print(model_0.dynamics[0].covariance_hand)
 print(model_0.dynamics[0].covariance_gripper)
 
+model_0.em_algorithm([x_track])
+
+print(" === PARAMETERS AFTER EM === ")
+print(" --- transition matrix --- ")
+print(model_0.transition.trans_mtrx)
+print(" --- dynamics matrix --- ")
+print(model_0.dynamics[0].weights_hand)
+print(model_0.dynamics[0].weights_gripper)
+print(model_0.dynamics[0].covariance_hand)
+print(model_0.dynamics[0].covariance_gripper)
+
+
 fig = plt.figure()
 ax = plt.axes(projection='3d')
 plt.plot(x_track[:,0], x_track[:,1], x_track[:,2])

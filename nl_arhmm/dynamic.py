@@ -484,8 +484,8 @@ class Linear_Hand_Quadratic_Gripper(object):
         out_set = np.asarray(output_set)
         err_set = out_set - pred_set
         for _h in range(self.n_hand):
-            self.covariance_hand[_h] = np.cov(np.transpose(err_set[_h*4:_h*4 + 3,:]))
-            self.covariance_gripper[_h] = np.var(err_set[_h*4 + 3])
+            self.covariance_hand[_h] = np.cov(np.transpose(err_set[:, _h*4:_h*4 + 3]))
+            self.covariance_gripper[_h] = np.var(err_set[:, _h*4 + 3])
         return
 
     def learn_vector_field(self, input_set, output_set, weights=None):
@@ -517,7 +517,7 @@ class Linear_Hand_Quadratic_Gripper(object):
         expected_out = []
         PHI = []
         for _, _in in enumerate(in_data):
-            PHI.append(self.compute_phi_vect(_in)) # PHI is a n_data x n_hand x 2 list
+            PHI += [self.compute_phi_vect(_in)] # PHI is a n_data x n_hand x 2 list
             expected_out.append(self.apply_vector_field(_in))
         expected_out = np.asarray(expected_out)
 
@@ -560,7 +560,7 @@ class Linear_Hand_Quadratic_Gripper(object):
             _phi_h_column = np.reshape(np.asarray(_phi_h), [T, 4, 1])
 
             _w_num_h = np.sum(
-                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_h_3, _phi_h_row), 0
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_h_3d, _phi_h_row), 0
                     )
             _w_den_h = np.sum(
                 np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_h_column, _phi_h_row), 0
@@ -590,13 +590,13 @@ class Linear_Hand_Quadratic_Gripper(object):
 
             _out_g_3d = np.reshape(np.asarray(_out_g), [T, 1, 1])
             _phi_g = []
-            for _h in range(len(PHI)):
+            for _n in range(len(PHI)):
                 _phi_g.append(PHI[_n][_h][1]) # 1 is for the gripper
             _phi_g_row = np.reshape(np.asarray(_phi_g), [T, 1, 3])
             _phi_g_column = np.reshape(np.asarray(_phi_g), [T, 3, 1])
 
             _w_num_g = np.sum(
-                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_g_3, _phi_g_row), 0
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_g_3d, _phi_g_row), 0
                     )
             _w_den_g = np.sum(
                 np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_g_column, _phi_g_row), 0
@@ -623,16 +623,24 @@ class Linear_Hand_Quadratic_Gripper(object):
             self.weights_hand[_h] = np.dot(w_num_h, np.linalg.pinv(w_den_h))
             self.covariance_hand[_h] = c_num_h / (c_den_h + correction) + correction * np.eye(3)
             self.weights_gripper[_h] = np.dot(w_num_g, np.linalg.pinv(w_den_g))
-            self.covariance_gripper[_h] = c_num_g / (c_den_g + correction) + correction * np.eye(3)
+            self.covariance_gripper[_h] = (c_num_g / (c_den_g + correction) + correction)[0][0]
         return
 
     def give_prob_of_netx_step(self, y0, y1):
         mu = self.apply_vector_field(y0)
-        return normal_prob(y1, mu, self.covariance)
+        covariance = np.zeros([4 * self.n_hand, 4*self.n_hand])
+        for _h in range(self.n_hand):
+            covariance[4*_h : 4*_h + 3, 4*_h : 4*_h + 3] = self.covariance_hand[_h]
+            covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
+        return normal_prob(y1, mu, covariance)
 
     def give_log_prob_of_next_step(self, y0, y1):
         mu = self.apply_vector_field(y0)
-        return log_normal_prob(y1, mu, self.covariance)
+        covariance = np.zeros([4 * self.n_hand, 4*self.n_hand])
+        for _h in range(self.n_hand):
+            covariance[4*_h : 4*_h + 3, 4*_h : 4*_h + 3] = self.covariance_hand[_h]
+            covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
+        return log_normal_prob(y1, mu, covariance)
 
     def apply_vector_field(self, x):
         x_next = np.zeros(4 * self.n_hand)
