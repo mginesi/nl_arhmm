@@ -497,15 +497,15 @@ class Linear_Hand_Quadratic_Gripper(object):
             # Cartesian position
             phi_mat_pos = np.zeros([n_data, 4])
             for _n in range(n_data):
-                phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][0] # 0 is for the hand
+                phi_mat_pos[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][0] # 0 is for the hand
             T_hand = np.asarray(output_set)[:, _h*4:_h*4+3] * np.reshape(sqrt_weights, [n_data , 1])
-            self.weights_hand[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat), T_hand))
+            self.weights_hand[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat_pos), T_hand))
             # Gripper angle
-            phi_mat_angle = np.zeros([n_data, 1])
+            phi_mat_angle = np.zeros([n_data, 3])
             for _n in range(n_data):
-                phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][1] # 0 is for the hand
-            T_angle = np.asarray(output_set)[:, _h*4+3] * np.reshape(sqrt_weights, [n_data , 1])
-            self.weights_gripper[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat), T_angle))
+                phi_mat_angle[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][1] # 0 is for the hand
+            T_angle = (np.asarray(output_set)[:, _h*4+3]).reshape([n_data, 1]) * np.reshape(sqrt_weights, [n_data , 1])
+            self.weights_gripper[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat_angle), T_angle))
         return
 
     def maximize_emission_elements(self, in_arg):
