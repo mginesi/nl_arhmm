@@ -461,6 +461,140 @@ class Cubic_Dynamic(object):
 # DECOUPLED OBSERVED VARIABLES #
 #──────────────────────────────#
 
+class Multiple_Linear(object):
+
+    def __init__(self, n_hand, n_dim):
+        self.n_hand = n_hand
+        self.n_dim = n_dim
+        self.n_basis = (n_dim + 1) * n_hand
+        self.weights = [np.random.rand(n_dim, n_dim + 1) for _ in range(self.n_hand)]
+        self.covariance = [np.eye(n_dim) * 0.1 for _ in range(self.n_hand)]
+        return
+
+    def compute_phi_vect(self, x):
+        phi = []
+        _phi = np.ones(self.n_dim + 1)
+        for _h in range(self.n_hand):
+            _phi[:self.n_dim] = x[_h * self.n_dim : _h * self.n_dim + self.n_dim]
+            phi.append(copy.deepcopy(_phi))
+        return phi
+
+    def estimate_cov_mtrx(self, input_set, output_set):
+        pred_set = []
+        for _, _in in enumerate(input_set):
+            pred_set.append(self.apply_vector_field(_in))
+        pred_set = np.asarray(pred_set)
+        out_set = np.asarray(output_set)
+        err_set = out_set - pred_set
+        for _h in range(self.n_hand):
+            self.covariance[_h] = np.cov(np.transpose(err_set[:, _h*self.n_dim:_h*self.n_dim + self.n_dim]))
+        return
+
+    def learn_vector_field(self, input_set, output_set, weights=None):
+        n_data = len(input_set)
+        if weights is None:
+            weights = np.ones(n_data)
+        sqrt_weights = np.sqrt(np.asarray(weights))
+        for _h in range(self.n_hand):
+            # Cartesian position
+            phi_mat_pos = np.zeros([n_data, (self.n_dim + 1)])
+            for _n in range(n_data):
+                phi_mat_pos[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h]
+            T_hand = np.asarray(output_set)[:, _h*self.n_dim :_h*self.n_dim+self.n_dim] * np.reshape(sqrt_weights, [n_data , 1])
+            self.weights[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat_pos), T_hand))
+        return
+
+    def maximize_emission_elements(self, in_arg):
+        data = in_arg[0]
+        gamma_s = in_arg[1]
+        in_data = data[:-1]
+        out_data = data[1:]
+        T = np.shape(out_data)[0]
+        expected_out = []
+        PHI = []
+        for _, _in in enumerate(in_data):
+            PHI += [self.compute_phi_vect(_in)]
+            expected_out.append(self.apply_vector_field(_in))
+        expected_out = np.asarray(expected_out)
+
+        # for loop along number of end-effectors
+        cov_num = []
+        cov_den = []
+        w_num = []
+        w_den = []
+
+        for _h in range(self.n_hand):
+
+            _ex_out = expected_out[:, (self.n_dim + 1)*_h : (self.n_dim + 1)*_h + self.n_dim]
+            _out = out_data[:, (self.n_dim + 1)*_h : (self.n_dim + 1)*_h + self.n_dim]
+            _err = np.reshape(_out - _ex_out, [T, self.n_dim, 1])
+            _err_t = np.reshape(_out - _ex_out, [T, 1, self.n_dim])
+            _cov_err = np.matmul(_err, _err_h)
+            _cov_num = np.sum(_cov_err * np.reshape(gamma_s, [T, 1, 1]), 0)
+            _cov_den = np.sum(gamma_s)
+
+            cov_num.append(_cov_num)
+            cov_den.append(_cov_den)
+
+            # Weights
+
+            _out_3d = np.reshape(np.asarray(_out), [T, self.n_dim, 1])
+            _phi = []
+            for _n in range(len(PHI)):
+                _phi.append(PHI[_n][_h])
+            _phi_row = np.reshape(np.asarray(_phi), [T, 1, self.n_dim+1])
+            _phi_column = np.reshape(np.asarray(_phi), [T, self.n_dim+1, 1])
+
+            _w_num = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_out_3d, _phi_row), 0
+                    )
+            _w_den = np.sum(
+                np.reshape(gamma_s, [T,1,1]) * np.matmul(_phi_column, _phi_row), 0
+                    )
+
+            w_num.append(_w_num)
+            w_den.append(_w_den)
+        return [w_num, w_den, cov_num, cov_den]
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.maximize_emission_elements, zip(data_set, gamma_set))
+        for _h in range(self.n_hand):
+            w_num = sum([_out[i][0][_h] for i in range(len(_out))])
+            w_den = sum([_out[i][1][_h] for i in range(len(_out))])
+            c_num = sum([_out[i][2][_h] for i in range(len(_out))])
+            c_den = sum([_out[i][3][_h] for i in range(len(_out))])
+            self.weights[_h] = np.dot(w_num, np.linalg.pinv(w_den))
+            self.covariance[_h] = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
+        return
+
+    def give_prob_of_netx_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
+        for _h in range(self.n_hand):
+            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance_hand[_h]
+        return normal_prob(y1, mu, covariance)
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        mu = self.apply_vector_field(y0)
+        covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
+        for _h in range(self.n_hand):
+            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance_hand[_h]
+        return log_normal_prob(y1, mu, covariance)
+
+    def apply_vector_field(self, x):
+        x_next = np.zeros(self.n_dim * self.n_hand)
+        phi = self.compute_phi_vect(x)
+        for _h in range(self.n_hand):
+            x_next[_h * self.n_dim : _h * self.n_dim + self.n_dim] = np.dot(self.weights[_h], phi[_h])
+        return x_next
+
+    def simulate_step(self, x):
+        covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
+        for _h in range(self.n_hand):
+            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance_hand[_h]
+        return self.apply_vector_field(x) + np.dot(covariance, np.random.randn(self.n_dim))
+
 class Linear_Hand_Quadratic_Gripper(object):
 
     def __init__(self, n_hand):
@@ -656,6 +790,7 @@ class Linear_Hand_Quadratic_Gripper(object):
             covariance[4*_h : 4*_h + 3, 4*_h : 4*_h + 3] = self.covariance_hand[_h]
             covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
         return self.apply_vector_field(x) + np.dot(covariance, np.random.randn(self.n_dim))
+
 
 # ------------------------------------------------------------------------------------------- #
 #                                           Demo                                              #

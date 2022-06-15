@@ -487,3 +487,22 @@ class Hand_Gripper_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
+class Decoupled_Linear_ARHMM(ARHMM):
+
+    def __init__(self, n_modes, n_dim, n_hand, correction=1e-08):
+        '''
+        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
+        '''
+        from nl_arhmm.dynamic import Multiple_Linear
+
+        self.n_hand = n_hand
+        self.n_dim = n_dim * n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Multiple_Linear(self.n_hand, n_dim))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
