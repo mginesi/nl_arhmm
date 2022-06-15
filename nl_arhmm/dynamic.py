@@ -525,11 +525,11 @@ class Multiple_Linear(object):
 
         for _h in range(self.n_hand):
 
-            _ex_out = expected_out[:, (self.n_dim + 1)*_h : (self.n_dim + 1)*_h + self.n_dim]
-            _out = out_data[:, (self.n_dim + 1)*_h : (self.n_dim + 1)*_h + self.n_dim]
+            _ex_out = expected_out[:, self.n_dim *_h : self.n_dim *_h + self.n_dim]
+            _out = out_data[:, self.n_dim*_h : self.n_dim*_h + self.n_dim]
             _err = np.reshape(_out - _ex_out, [T, self.n_dim, 1])
             _err_t = np.reshape(_out - _ex_out, [T, 1, self.n_dim])
-            _cov_err = np.matmul(_err, _err_h)
+            _cov_err = np.matmul(_err, _err_t)
             _cov_num = np.sum(_cov_err * np.reshape(gamma_s, [T, 1, 1]), 0)
             _cov_den = np.sum(gamma_s)
 
@@ -572,14 +572,14 @@ class Multiple_Linear(object):
         mu = self.apply_vector_field(y0)
         covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
         for _h in range(self.n_hand):
-            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance_hand[_h]
+            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance[_h]
         return normal_prob(y1, mu, covariance)
 
     def give_log_prob_of_next_step(self, y0, y1):
         mu = self.apply_vector_field(y0)
         covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
         for _h in range(self.n_hand):
-            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance_hand[_h]
+            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance[_h]
         return log_normal_prob(y1, mu, covariance)
 
     def apply_vector_field(self, x):
@@ -592,7 +592,7 @@ class Multiple_Linear(object):
     def simulate_step(self, x):
         covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
         for _h in range(self.n_hand):
-            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance_hand[_h]
+            covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance[_h]
         return self.apply_vector_field(x) + np.dot(covariance, np.random.randn(self.n_dim))
 
 class Linear_Hand_Quadratic_Gripper(object):
