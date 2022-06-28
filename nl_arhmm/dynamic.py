@@ -1,6 +1,8 @@
 import numpy as np
 import copy
 from nl_arhmm.utils import normal_prob, log_normal_prob
+from nl_arhmm.utils import quaternion_product, quaternion_exponential
+from nl_arhmm.utils import normalize_vect, normalize_rows
 import multiprocessing
 
 class GRBF_Dynamic(object):
@@ -456,6 +458,64 @@ class Cubic_Dynamic(object):
 
     def simulate_step(self, x):
         return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
+
+#─────────────────────────#
+# UNIT QUATERNION DYNAMIC #
+#─────────────────────────#
+
+class Unit_Quaternion(object):
+
+    def __init__(self, n_hands):
+        self.n_hads = n_hands
+        self.vect_f = [quaternion_exponential(np.block([0, np.random.rand(3)])) for _ in self.n_hands]
+        self.covariance_m = [np.eye(4) * 0.01 for _ in self.n_hands]
+        return
+
+    def estimate_cov_mtrx(self, input_set, output_set, weights=None):
+        return
+
+    def learn_vector_field(self, input_set, output_set, weights=None):
+        return
+
+    def maximize_emission_elements(self, in_arg):
+        return
+
+    def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        return
+
+    def give_prob_of_next_step(self, q0, q1):
+        mu = self.apply_vector_field(q0)
+        Sigma = np.zeros([self.n_hads * 4, self.n_hans * 4])
+        for _h in self.n_hands:
+            Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
+        return normal_prob(q0, mu, Sigma)
+
+    def give_log_prob_of_next_step(self, q0, q1):
+        mu = self.apply_vector_field(q0)
+        Sigma = np.zeros([self.n_hads * 4, self.n_hans * 4])
+        for _h in self.n_hands:
+            Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
+        return log_normal_prob(q0, mu, Sigma)
+
+    def apply_vector_field(self, q):
+        list_out = []
+        for _h in range(self.n_hads):
+            list_out.append(
+                normalize_vect(
+                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4])
+                ))
+        out = np.block(list_out)
+        return out
+
+    def simulate_step(self, q):
+        list_out = []
+        for _h in range(self.n_hads):
+            list_out.append(
+                normalize_vect(
+                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4]) + np.dot(self.covariance_m[_h], np.random.randn(4))
+                ))
+        out = np.block(list_out)
+        return out
 
 #──────────────────────────────#
 # DECOUPLED OBSERVED VARIABLES #

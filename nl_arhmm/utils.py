@@ -74,3 +74,45 @@ def normalize_mtrx(M):
     Normalize the matrix to sum to 1.
     '''
     return M / np.sum(M)
+
+#──────────────────────#
+# QUATERNION FUNCTIONS #
+#──────────────────────#
+
+# the quaternion is a 4-d array [w x y z]
+
+def quaternion_exponential(q):
+    if q.ndim == 1:
+        q_out = np.block([
+            np.exp(q[0]) * np.cos(np.linalg.norm(q[1:])),
+            np.exp(q[0]) * np.sin(np.linalg.norm(q[1:])) / np.linalg.norm(q[1:]) * q[1:]
+            ])
+    else:
+        T = q.shape[0]
+        exp_q_scal = np.reshape(
+                np.exp(q[:, 0]) * np.linalg.norm(q[:, 1:], axis=1),
+                [T, 1]
+                )
+        exp_q_vec = np.reshape(np.exp(q[:,0]) * np.sin(np.linalg.norm(q[:, 1:], axis=1)) / np.linalg.norm(q[:, 1:], axis=1), [T, 1]) * q[:, 1:]
+        q_out = np.block([
+            exp_q_scal, exp_q_vec
+            ])
+    return q_out
+
+def quaternion_product(q0, q1):
+    if q0.ndim == 1:
+        q_out = np.block([
+            q0[0] * q1[0] - np.dot(q0[1:], q1[1:]),
+            q0[0] * q1[1:] + q1[0] * q0[1:] + np.cross(q0[1:], q1[1:])
+            ])
+    else:
+        T = q0.shape[0]
+        q_prod_scal = np.reshape(
+            q0[0,:] * q1[0,:] - np.sum(q0[:, 1:] * q1[:, 1:] , 1),
+            [T, 1])
+        q_prod_vec = \
+            np.reshape(q0[:,0], [T, 1]) * q1[:,1:] + \
+            np.reshape(q1[:,0], [T, 1]) * q2[:,1:] + \
+            np.cross(q0[:,1:], q1[:,1:])
+        q_out = np.block([q_prod_scal, q_prod_vec])
+    return q_out
