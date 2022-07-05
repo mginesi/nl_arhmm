@@ -305,7 +305,7 @@ class ARHMM(object):
         # Recursion
         for _t in range(1, T):
             log_alpha[_t] = _logprob_data[_t] + \
-                logsumexp(log_alpha[_t - 1] + np.transpose(self.transition.logtrans), axis = 1)
+                logsumexp(log_alpha[_t - 1] + self.transition.logtrans.T , axis = 1)
             log_c_rescale[_t] = logsumexp(log_alpha[_t])
             log_alpha[_t] -= log_c_rescale[_t]
 
@@ -344,7 +344,7 @@ class ARHMM(object):
         T = np.shape(log_alpha)[0]
         _xi = np.zeros([T - 1, self.n_modes, self.n_modes])
         for _t in range(T - 1):
-            _xi[_t] = (log_alpha[_t] + self.transition.logtrans.transpose()).transpose() + \
+            _xi[_t] = (log_alpha[_t] + self.transition.logtrans.T).T + \
                 _logprob_future[_t + 1] + log_beta[_t + 1] - log_c_rescale[_t + 1]
             _xi[_t] = normalize_mtrx(np.exp(_xi[_t]))
         return _xi

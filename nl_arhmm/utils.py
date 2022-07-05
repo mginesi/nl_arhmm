@@ -24,7 +24,7 @@ def normal_prob(y, mu, sigma, inv=False):
             sigma_inv = sigma
             det_sigma = 1.0 / np.linalg.det(sigma_inv)
         const = (0.3989422804014327 ** k) / np.sqrt(det_sigma)
-        return const * np.exp(-0.5 * np.dot(y - mu, np.dot(sigma_inv, y - mu)))
+        return const * np.exp(-0.5 * (y - mu) @ sigma_inv @ (y - mu))
 
 def log_normal_prob(y, mu, sigma, inv=False):
     '''
@@ -50,7 +50,7 @@ def log_normal_prob(y, mu, sigma, inv=False):
             sigma_inv = sigma
             det_sigma = 1.0 / np.linalg.det(sigma)
         return - k * 0.9189385332046727 - 0.5 * np.log(det_sigma) - 0.5 * \
-            np.dot(y - mu, np.dot(sigma_inv, y - mu))
+            (y - mu) @ sigma_inv @ (y - mu)
 
 ## ----------------------------------------------------------------------------------------- ##
 ##  WARNING: This are not actual normalization, the output will always sum to 1, and not     ##
@@ -67,7 +67,7 @@ def normalize_rows(M):
     '''
     Normalize each row of the given matrix.
     '''
-    return M / np.array([np.sum(M, 1)]).transpose()
+    return M / np.array([np.sum(M, 1)]).T
 
 def normalize_mtrx(M):
     '''

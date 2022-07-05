@@ -41,7 +41,7 @@ class GRBF_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(np.transpose(err_set))
+        self.covariance = np.cov(err_set.T)
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -55,7 +55,7 @@ class GRBF_Dynamic(object):
         for _n in range(n_data):
             phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
-        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+        self.weights = (np.linalg.pinv(phi_mat) @ T).T
 
     def maximize_emission_elements(self, in_arg):
         '''
@@ -102,7 +102,7 @@ class GRBF_Dynamic(object):
         w_den = sum([_out[i][1] for i in range(len(_out))])
         c_num = sum([_out[i][2] for i in range(len(_out))])
         c_den = sum([_out[i][3] for i in range(len(_out))])
-        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.weights = w_num @ np.linalg.pinv(w_den)
         self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
 
     def give_prob_of_next_step(self, y0, y1):
@@ -114,10 +114,10 @@ class GRBF_Dynamic(object):
         return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
-        return np.dot(self.weights, self.compute_phi_vect(x))
+        return self.weights @ self.compute_phi_vect(x)
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 class Linear_Dynamic(object):
 
@@ -154,7 +154,7 @@ class Linear_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(np.transpose(err_set))
+        self.covariance = np.cov(err_set.T)
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -168,7 +168,7 @@ class Linear_Dynamic(object):
         for _n in range(n_data):
             phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
-        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+        self.weights = (np.linalg.pinv(phi_mat) @ T).T
 
     def maximize_emission_elements(self, in_arg):
         '''
@@ -215,7 +215,7 @@ class Linear_Dynamic(object):
         w_den = sum([_out[i][1] for i in range(len(_out))])
         c_num = sum([_out[i][2] for i in range(len(_out))])
         c_den = sum([_out[i][3] for i in range(len(_out))])
-        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.weights = w_num @ np.linalg.pinv(w_den)
         self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
 
     def give_prob_of_next_step(self, y0, y1):
@@ -227,10 +227,10 @@ class Linear_Dynamic(object):
         return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
-        return np.dot(self.weights, self.compute_phi_vect(x))
+        return self.weights @ self.compute_phi_vect(x)
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 class Quadratic_Dynamic(object):
 
@@ -268,7 +268,7 @@ class Quadratic_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(np.transpose(err_set))
+        self.covariance = np.cov(err_set.T)
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -282,7 +282,7 @@ class Quadratic_Dynamic(object):
         for _n in range(n_data):
             phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
-        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+        self.weights = (np.linalg.pinv(phi_mat) @ T).T
 
     def maximize_emission_elements(self, in_arg):
         '''
@@ -329,7 +329,7 @@ class Quadratic_Dynamic(object):
         w_den = sum([_out[i][1] for i in range(len(_out))])
         c_num = sum([_out[i][2] for i in range(len(_out))])
         c_den = sum([_out[i][3] for i in range(len(_out))])
-        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.weights = w_num @ np.linalg.pinv(w_den)
         self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
 
     def give_prob_of_next_step(self, y0, y1):
@@ -341,10 +341,10 @@ class Quadratic_Dynamic(object):
         return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
-        return np.dot(self.weights, self.compute_phi_vect(x))
+        return self.weights @ self.compute_phi_vect(x)
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 class Cubic_Dynamic(object):
 
@@ -381,7 +381,7 @@ class Cubic_Dynamic(object):
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(np.transpose(err_set))
+        self.covariance = np.cov(err_set.T)
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -395,7 +395,7 @@ class Cubic_Dynamic(object):
         for _n in range(n_data):
             phi_mat[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])
         T = np.asarray(output_set) * np.reshape(sqrt_weights, [n_data, 1])
-        self.weights = np.transpose(np.dot(np.linalg.pinv(phi_mat), T))
+        self.weights = (np.linalg.pinv(phi_mat) @ T).T
 
     def maximize_emission_elements(self, in_arg):
         '''
@@ -442,7 +442,7 @@ class Cubic_Dynamic(object):
         w_den = sum([_out[i][1] for i in range(len(_out))])
         c_num = sum([_out[i][2] for i in range(len(_out))])
         c_den = sum([_out[i][3] for i in range(len(_out))])
-        self.weights = np.dot(w_num, np.linalg.pinv(w_den))
+        self.weights = w_num @ np.linalg.pinv(w_den)
         self.covariance = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
 
     def give_prob_of_next_step(self, y0, y1):
@@ -454,10 +454,10 @@ class Cubic_Dynamic(object):
         return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
-        return np.dot(self.weights, self.compute_phi_vect(x))
+        return self.weights @ self.compute_phi_vect(x)
 
     def simulate_step(self, x):
-        return self.apply_vector_field(x) + np.dot(self.covariance, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 #─────────────────────────#
 # UNIT QUATERNION DYNAMIC #
@@ -512,7 +512,7 @@ class Unit_Quaternion(object):
         for _h in range(self.n_hads):
             list_out.append(
                 normalize_vect(
-                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4]) + np.dot(self.covariance_m[_h], np.random.randn(4))
+                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4]) + self.covariance_m[_h] @ np.random.randn(4)
                 ))
         out = np.block(list_out)
         return out
@@ -547,7 +547,7 @@ class Multiple_Linear(object):
         out_set = np.asarray(output_set)
         err_set = out_set - pred_set
         for _h in range(self.n_hand):
-            self.covariance[_h] = np.cov(np.transpose(err_set[:, _h*self.n_dim:_h*self.n_dim + self.n_dim]))
+            self.covariance[_h] = np.cov((err_set[:, _h*self.n_dim:_h*self.n_dim + self.n_dim]).T)
         return
 
     def learn_vector_field(self, input_set, output_set, weights=None):
@@ -561,7 +561,7 @@ class Multiple_Linear(object):
             for _n in range(n_data):
                 phi_mat_pos[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h]
             T_hand = np.asarray(output_set)[:, _h*self.n_dim :_h*self.n_dim+self.n_dim] * np.reshape(sqrt_weights, [n_data , 1])
-            self.weights[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat_pos), T_hand))
+            self.weights[_h] = (np.linalg.pinv(phi_mat_pos) @ T_hand).T
         return
 
     def maximize_emission_elements(self, in_arg):
@@ -624,7 +624,7 @@ class Multiple_Linear(object):
             w_den = sum([_out[i][1][_h] for i in range(len(_out))])
             c_num = sum([_out[i][2][_h] for i in range(len(_out))])
             c_den = sum([_out[i][3][_h] for i in range(len(_out))])
-            self.weights[_h] = np.dot(w_num, np.linalg.pinv(w_den))
+            self.weights[_h] = w_num @ np.linalg.pinv(w_den)
             self.covariance[_h] = c_num / (c_den + correction) + correction * np.eye(self.n_dim)
         return
 
@@ -646,14 +646,14 @@ class Multiple_Linear(object):
         x_next = np.zeros(self.n_dim * self.n_hand)
         phi = self.compute_phi_vect(x)
         for _h in range(self.n_hand):
-            x_next[_h * self.n_dim : _h * self.n_dim + self.n_dim] = np.dot(self.weights[_h], phi[_h])
+            x_next[_h * self.n_dim : _h * self.n_dim + self.n_dim] = self.weights[_h] @ phi[_h]
         return x_next
 
     def simulate_step(self, x):
         covariance = np.zeros([self.n_dim * self.n_hand, self.n_dim * self.n_hand])
         for _h in range(self.n_hand):
             covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance[_h]
-        return self.apply_vector_field(x) + np.dot(covariance, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + covariance @ np.random.randn(self.n_dim)
 
 class Linear_Hand_Quadratic_Gripper(object):
 
@@ -678,7 +678,7 @@ class Linear_Hand_Quadratic_Gripper(object):
         out_set = np.asarray(output_set)
         err_set = out_set - pred_set
         for _h in range(self.n_hand):
-            self.covariance_hand[_h] = np.cov(np.transpose(err_set[:, _h*4:_h*4 + 3]))
+            self.covariance_hand[_h] = np.cov((err_set[:, _h*4:_h*4 + 3]).T)
             self.covariance_gripper[_h] = np.var(err_set[:, _h*4 + 3])
         return
 
@@ -693,13 +693,13 @@ class Linear_Hand_Quadratic_Gripper(object):
             for _n in range(n_data):
                 phi_mat_pos[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][0] # 0 is for the hand
             T_hand = np.asarray(output_set)[:, _h*4:_h*4+3] * np.reshape(sqrt_weights, [n_data , 1])
-            self.weights_hand[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat_pos), T_hand))
+            self.weights_hand[_h] = (np.linalg.pinv(phi_mat_pos) @ T_hand).T
             # Gripper angle
             phi_mat_angle = np.zeros([n_data, 3])
             for _n in range(n_data):
                 phi_mat_angle[_n] = sqrt_weights[_n] * self.compute_phi_vect(input_set[_n])[_h][1] # 0 is for the hand
             T_angle = (np.asarray(output_set)[:, _h*4+3]).reshape([n_data, 1]) * np.reshape(sqrt_weights, [n_data , 1])
-            self.weights_gripper[_h] = np.transpose(np.dot(np.linalg.pinv(phi_mat_angle), T_angle))
+            self.weights_gripper[_h] = (np.linalg.pinv(phi_mat_angle) @ T_angle).T
         return
 
     def maximize_emission_elements(self, in_arg):
@@ -814,9 +814,9 @@ class Linear_Hand_Quadratic_Gripper(object):
             w_den_g = sum([_out[i][5][_h] for i in range(len(_out))])
             c_num_g = sum([_out[i][6][_h] for i in range(len(_out))])
             c_den_g = sum([_out[i][7][_h] for i in range(len(_out))])
-            self.weights_hand[_h] = np.dot(w_num_h, np.linalg.pinv(w_den_h))
+            self.weights_hand[_h] = w_num_h @ np.linalg.pinv(w_den_h)
             self.covariance_hand[_h] = c_num_h / (c_den_h + correction) + correction * np.eye(3)
-            self.weights_gripper[_h] = np.dot(w_num_g, np.linalg.pinv(w_den_g))
+            self.weights_gripper[_h] = w_num_g @ np.linalg.pinv(w_den_g)
             self.covariance_gripper[_h] = (c_num_g / (c_den_g + correction) + correction)[0][0]
         return
 
@@ -840,8 +840,8 @@ class Linear_Hand_Quadratic_Gripper(object):
         x_next = np.zeros(4 * self.n_hand)
         phi = self.compute_phi_vect(x)
         for _h in range(self.n_hand):
-            x_next[_h * 4 : _h * 4 + 3] = np.dot(self.weights_hand[_h], phi[_h][0])
-            x_next[_h * 4 + 3] = np.dot(self.weights_gripper[_h], phi[_h][1])
+            x_next[_h * 4 : _h * 4 + 3] = self.weights_hand[_h] @ phi[_h][0]
+            x_next[_h * 4 + 3] = self.weights_gripper[_h] @ phi[_h][1]
         return x_next
 
     def simulate_step(self, x):
@@ -849,7 +849,7 @@ class Linear_Hand_Quadratic_Gripper(object):
         for _h in range(self.n_hand):
             covariance[4*_h : 4*_h + 3, 4*_h : 4*_h + 3] = self.covariance_hand[_h]
             covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
-        return self.apply_vector_field(x) + np.dot(covariance, np.random.randn(self.n_dim))
+        return self.apply_vector_field(x) + covariance @ np.random.randn(self.n_dim)
 
 
 # ------------------------------------------------------------------------------------------- #
@@ -998,7 +998,6 @@ if __name__ == "__main__":
     plt.title('GRBF - Mixed')
 
     # Linear
-    
     from dynamic import Linear_Dynamic
 
     A_true = np.random.rand(2, 2) / 10.0 # true v.f.
