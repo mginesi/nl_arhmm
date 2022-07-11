@@ -467,9 +467,60 @@ class Unit_Quaternion(object):
 
     def __init__(self, n_hands):
         self.n_hads = n_hands
-        self.vect_f = [quaternion_exponential(np.block([0, np.random.rand(3)])) for _ in self.n_hands]
+        self.vf_coeff = [np.random.rand(3) for _ in self.n_hands]
+        self.vect_f = [quaternion_exponential(np.block([0, self.vf_coeff[_h]])) for _h in self.n_hands]
         self.covariance_m = [np.eye(4) * 0.01 for _ in self.n_hands]
         return
+
+    # -- Functions to compute the gradient for the maximization step -- #
+    # FIXME: in the learning, p changes but data doesn't, the function may be defined inside the learning method and be a function only on the "p" vector?
+    def matrix_H(self, data, hand):
+        T = len(data) - 1
+        v_t = np.reshape(data[:-1, 0], [T, 1, 1]) # scalar component of quaternion data
+        u_t = np.reshape(data[:-1, 1:], [T, 3, 1]) # vector component of quaternion data
+        H_mtrx = np.zeros([T, 3, 4])
+        # vectors and matrices reshaped to achieve a T x dim x 1 final result
+        p_r = np.reshape(self.vf_coeff[hand], [1, 3, 1])
+        p_norm = tc.reshape(np.linalg.norm(self.vf_coeff[hand]), [1, 1, 1])
+        sin_p = np.sin(p_norm)
+        cos_p = np.cos(p_norm)
+        # Skew symmetrix matrix
+        skew_mtrx = np.zeros([T, 3, 3])
+        skew_mtrx[:, 0, 1] = - u_t[:, 2]
+        skew_mtrx[:, 0, 2] = u_t[:, 1]
+        skew_mtrx[:, 1, 0] = u_t[:, 2]
+        skew_mtrx[:, 1, 2] = - u_t[:, 0]
+        skew_mtrx[:, 2, 0] = - u_t[:, 1]
+        skew_mtrx[:, 2, 1] = u_t[:, 0]
+
+        ## first column
+        H_mtrx[:, :, 0] = \
+            - v_t * sin_p / p_norm * p_r + \
+            (p_norm * cos_p + sin_p / p_norm ** 3) * (np.transpose(p_r, [0, 2, 1]) @ u_t) * p_r + \
+            (- sin_p / p) * u_t
+
+        ## last three columns
+        H_mtrx[:, :, 1:] = \
+            - sin_p / p_norm * p_r * np.transpose(u_t, [0, 2, 1]) + \
+            v_t / p_norm / p_norm * (cos_p - sin_p / p_norm) * p_r * np.transpose(p_r, [0, 2, 1]) + \
+            v_t * sin_p / p_norm * np.reshape(np.eye(3), [1, 3, 3]) + \
+            (cos_p - sin_p / p_norm) / p_norm / p_norm * p_r @ np.transpose((np.cross(p, u_t, axis=1)), [0, 2, 1]) + \
+            sin_p / p_norm * skew_mtrx
+
+        return H_mtrx
+
+    def gradient(self, data, hand):
+        T = len(data) - 1
+        H = self.matrix_H(data, hand)
+        # TODO the following used next have to been implemented to work with different sized quaternions (to enable broadcasting)
+        err = data[1:] - quaternion_product(
+            quaternion_exponential(
+                np.array([0, self.vf_coeff[hand][0], self.vf_coeff[hand][1], self.vf_coeff[hand][2]])),
+            data[:-1])
+        # TODO check dimensions of the next dot product
+        grad = -2 * np.sum(H @ self.inv(self.covariance_m[hand]) @ err, axis=0)
+        return grad
+
 
     def estimate_cov_mtrx(self, input_set, output_set, weights=None):
         return
