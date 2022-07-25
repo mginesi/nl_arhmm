@@ -466,7 +466,7 @@ class Cubic_Dynamic(object):
 class Unit_Quaternion(object):
 
     def __init__(self, n_hands):
-        self.n_hads = n_hands
+        self.n_hands = n_hands
         self.vf_coeff = [np.random.rand(3) for _ in self.n_hands]
         self.vect_f = [quaternion_exponential(np.block([0, self.vf_coeff[_h]])) for _h in self.n_hands]
         self.covariance_m = [np.eye(4) * 0.01 for _ in self.n_hands]
@@ -474,6 +474,7 @@ class Unit_Quaternion(object):
 
     # -- Functions to compute the gradient for the maximization step -- #
     # FIXME: in the learning, p changes but data doesn't, the function may be defined inside the learning method and be a function only on the "p" vector?
+
     def matrix_H(self, data, hand):
         T = len(data) - 1
         v_t = np.reshape(data[:-1, 0], [T, 1, 1]) # scalar component of quaternion data
@@ -509,18 +510,20 @@ class Unit_Quaternion(object):
 
         return H_mtrx
 
-    def gradient(self, data, hand):
+    def gradient(self, data, gamma):
         T = len(data) - 1
-        H = self.matrix_H(data, hand)
-        # TODO the following used next have to been implemented to work with different sized quaternions (to enable broadcasting)
-        err = data[1:] - quaternion_product(
-            quaternion_exponential(
-                np.array([0, self.vf_coeff[hand][0], self.vf_coeff[hand][1], self.vf_coeff[hand][2]])),
-            data[:-1])
-        # TODO check dimensions of the next dot product
-        grad = -2 * np.sum(H @ self.inv(self.covariance_m[hand]) @ err, axis=0)
-        return grad
-
+        grad_list = [] # outputs: list of gradients (one for each hand)
+        for hand in range(self.n_hands):
+            # here we insert the "weight" given by gamma
+            H = self.matrix_H(data, hand) * np.reshape(gamma, [T, 1, 1])
+            # TODO the methods used next have to been implemented to work with different sized quaternions (to enable broadcasting)
+            err = data[1:] - quaternion_product(
+                quaternion_exponential(
+                    np.array([0, self.vf_coeff[hand][0], self.vf_coeff[hand][1], self.vf_coeff[hand][2]])),
+                data[:-1])
+            # TODO check dimensions of the next dot product
+            grad_list.append(-2 * np.sum(H @ self.inv(self.covariance_m[hand]) @ err, axis=0))
+        return grad_list
 
     def estimate_cov_mtrx(self, input_set, output_set, weights=None):
         return
@@ -532,25 +535,37 @@ class Unit_Quaternion(object):
         return
 
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
+        # Function that has to be maximized
+        def to_maximize(param, hand):
+            exp_p = quaternion_product(
+                quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
+                data_set[:-1])
+            err = data_set[1:] - exp_p
+            err = np.reshape(err, [T, 1, 4])
+            err_t = np.transpose(err, [0, 2, 1])
+            return np.sum(gamma_set * err @ self.covariance_m[hand] @ err_t, 0)
+        # Inside this function we perform the gradient descent
+        pool = multiprocessing.Pool()
+        _out = pool.map(self.gradient, zip(data_set, gamma_set))
         return
 
     def give_prob_of_next_step(self, q0, q1):
         mu = self.apply_vector_field(q0)
-        Sigma = np.zeros([self.n_hads * 4, self.n_hans * 4])
+        Sigma = np.zeros([self.n_hands * 4, self.n_hans * 4])
         for _h in self.n_hands:
             Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
         return normal_prob(q0, mu, Sigma)
 
     def give_log_prob_of_next_step(self, q0, q1):
         mu = self.apply_vector_field(q0)
-        Sigma = np.zeros([self.n_hads * 4, self.n_hans * 4])
+        Sigma = np.zeros([self.n_hands * 4, self.n_hans * 4])
         for _h in self.n_hands:
             Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
         return log_normal_prob(q0, mu, Sigma)
 
     def apply_vector_field(self, q):
         list_out = []
-        for _h in range(self.n_hads):
+        for _h in range(self.n_hands):
             list_out.append(
                 normalize_vect(
                     quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4])
@@ -560,7 +575,7 @@ class Unit_Quaternion(object):
 
     def simulate_step(self, q):
         list_out = []
-        for _h in range(self.n_hads):
+        for _h in range(self.n_hands):
             list_out.append(
                 normalize_vect(
                     quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4]) + self.covariance_m[_h] @ np.random.randn(4)
@@ -902,209 +917,11 @@ class Linear_Hand_Quadratic_Gripper(object):
             covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
         return self.apply_vector_field(x) + covariance @ np.random.randn(self.n_dim)
 
-
-# ------------------------------------------------------------------------------------------- #
-#                                           Demo                                              #
-# ------------------------------------------------------------------------------------------- #
+#───────────────────────────────#
+# Methods to test the functions #
+#───────────────────────────────#
 
 if __name__ == "__main__":
 
-    # GRBF
+    from dynamic import Unit_Quaternion
 
-    from dynamic import GRBF_Dynamic
-    import matplotlib.pyplot as plt
-    rho = np.linspace(0.0, 1.0, 3)
-    theta = np.linspace(0.0, 2.0 * np.pi, 9)
-    theta = theta[:-1]
-    centers = np.zeros([24, 2])
-    for _rho in range(3):
-        for _theta in range(8):
-            centers[8 * _rho + _theta, 0] = _rho * np.cos(_theta)
-            centers[8 * _rho + _theta, 1] = _rho * np.sin(_theta)
-    dyn = GRBF_Dynamic(2, centers, 0.2 * np.ones(24))
-
-    def vf_stable(x):
-        x1 = x[0]
-        x2 = x[1]
-        f1 = x1 ** 3 + x2 ** 2 * x1 - x1 - x2
-        f2 = x2 ** 3 + x1 ** 2 * x2 + x1 - x2
-        return np.array([f1, f2])
-
-    def vf_omega_lim(x):
-        x1 = x[0]
-        x2 = x[1]
-        f1 = x1 ** 3 + x2 ** 2 * x1 - x1 - x2
-        f2 = x2 ** 3 + x1 ** 2 * x2 + x1 - x2
-        return - np.array([f1, f2])
-
-    # Creation of the input and output set (Euler scheme used)
-    n_sample = 500
-    dt = 0.01
-    input_set = []
-    output_set = []
-
-    # Stable data
-    for _ in range(n_sample):
-        _rho = np.random.rand()
-        _theta = np.random.rand() * 2.0 * np.pi
-        _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
-        _out = _in + dt * vf_stable(_in)
-        input_set.append(_in)
-        output_set.append(_out)
-
-    # Omega limit data
-    for _ in range(n_sample):
-        _rho = np.random.rand()
-        _theta = np.random.rand() * 2.0 * np.pi
-        _in = _rho * np.array([np.cos(_theta), np.sin(_theta)])
-        _out = _in + dt * vf_omega_lim(_in)
-        input_set.append(_in)
-        output_set.append(_out)
-
-    # Three set of weights
-    w_stable = np.ones(2*n_sample)
-    w_stable[n_sample:] = 0.0
-    w_omega_lim = np.ones(2*n_sample)
-    w_omega_lim[:n_sample] = 0.0
-    w_mix = np.ones(2*n_sample)
-
-    # Stable
-    # Learning of the vector field
-    dyn.learn_vector_field(input_set, output_set, w_stable)
-
-    # Simulation of the learned v.f.
-    rho = np.random.rand() * 0.5 + 0.5
-    theta = np.random.rand() * 2.0 * np.pi
-    _x = rho * np.array([np.cos(theta), np.sin(theta)])
-    _x_t = rho * np.array([np.cos(theta), np.sin(theta)])
-    x = [_x]
-    x_true = [_x_t]
-    for t in range(1000):
-        _x = dyn.apply_vector_field(_x)
-        _x_t = _x_t + dt * vf_stable(_x_t)
-        x.append(_x)
-        x_true.append(_x_t)
-    x = np.asarray(x)
-    x_true = np.asarray(x_true)
-    plt.figure()
-    plt.plot(x[:, 0], x[:, 1], 'r', label='learned')
-    plt.plot(x_true[:, 0], x_true[:, 1], '--b', label='true')
-    plt.plot(x[0, 0], x[0, 1], 'ok', label='x0')
-    plt.plot(x[-1][0], x[-1][1], 'xk', label='xT')
-    plt.legend(loc='best')
-    plt.xlim([-1, 1])
-    plt.ylim([-1, 1])
-    plt.title('GRBF - Only stable')
-
-    # Omega lim
-    # Learning of the vector field
-    dyn.learn_vector_field(input_set, output_set, w_omega_lim)
-
-    # Simulation of the learned v.f.
-    rho = np.random.rand() * 0.5 + 0.5
-    theta = np.random.rand() * 2.0 * np.pi
-    _x = rho * np.array([np.cos(theta), np.sin(theta)])
-    _x_t = rho * np.array([np.cos(theta), np.sin(theta)])
-    x = [_x]
-    x_true = [_x_t]
-    for t in range(1000):
-        _x = dyn.apply_vector_field(_x)
-        _x_t = _x_t + dt * vf_omega_lim(_x_t)
-        x.append(_x)
-        x_true.append(_x_t)
-    x = np.asarray(x)
-    x_true = np.asarray(x_true)
-    plt.figure()
-    plt.plot(x[:, 0], x[:, 1], 'r', label='learned')
-    plt.plot(x_true[:, 0], x_true[:, 1], '--b', label='true')
-    plt.plot(x[0, 0], x[0, 1], 'ok', label='x0')
-    plt.plot(x[-1][0], x[-1][1], 'xk', label='xT')
-    plt.legend(loc='best')
-    plt.xlim([-1, 1])
-    plt.ylim([-1, 1])
-    plt.title('GRBF - Only omega lim')
-
-    # Mixed
-    # Learning of the vector field
-    dyn.learn_vector_field(input_set, output_set, w_mix)
-
-    # Simulation of the learned v.f.
-    rho = np.random.rand() * 0.5 + 0.5
-    theta = np.random.rand() * 2.0 * np.pi
-    _x = rho * np.array([np.cos(theta), np.sin(theta)])
-    _x_t = rho * np.array([np.cos(theta), np.sin(theta)])
-    x = [_x]
-    for t in range(1000):
-        _x = dyn.apply_vector_field(_x)
-        _x_t = _x_t + dt * vf_omega_lim(_x_t)
-        x.append(_x)
-    x = np.asarray(x)
-    plt.figure()
-    plt.plot(x[:, 0], x[:, 1], 'r', label='learned')
-    plt.plot(x[0, 0], x[0, 1], 'ok', label='x0')
-    plt.plot(x[-1][0], x[-1][1], 'xk', label='xT')
-    plt.legend(loc='best')
-    plt.xlim([-1, 1])
-    plt.ylim([-1, 1])
-    plt.title('GRBF - Mixed')
-
-    # Linear
-    from dynamic import Linear_Dynamic
-
-    A_true = np.random.rand(2, 2) / 10.0 # true v.f.
-    b_true = np.random.rand(2) / 10.0
-    n_sample = 1000
-    in_set = []
-    out_set = []
-    for _n in range(n_sample):
-        in_set.append(np.random.rand(2))
-        out_set.append(np.dot(A_true, in_set[-1]) + b_true)
-
-    dyn = Linear_Dynamic(2)
-    dyn.learn_vector_field(in_set, out_set)
-
-    T = 100
-    x0 = np.random.rand(2)
-    x_demo = np.zeros([T, 2])
-    x_demo[0] = x0
-    x_demo_true = copy.deepcopy(x_demo)
-    for _t in range(T-1):
-        x_demo_true[_t+1] = np.dot(A_true, x_demo_true[_t]) + b_true
-        x_demo[_t + 1] = dyn.apply_vector_field(x_demo[_t])
-
-    plt.figure()
-    plt.plot(x_demo[:, 0], x_demo[:, 1], '-r', label='Inferred')
-    plt.plot(x_demo_true[:, 0], x_demo_true[:, 1], '--b', label='True')
-    plt.legend(loc='best')
-
-    # Quadratic basis functions
-    from dynamic import Quadratic_Dynamic
-    dyn = Quadratic_Dynamic(2)
-    x_0 = np.array([0.0, 0.9])
-    _x = np.array([x_0])
-    for _ in range(1000):
-        _x = np.append(_x, np.array([_x[-1] + 0.01 * vf_stable(_x[-1]) ]), axis=0)
-    dyn.learn_vector_field(_x[:-1], _x[1:])
-    x = np.array([x_0])
-    for _t in range(1000):
-        x = np.append(x, np.array([dyn.apply_vector_field(x[-1])]), axis=0)
-    dyn_l = Linear_Dynamic(2)
-    dyn_l.learn_vector_field(_x[:-1], _x[1:])
-    x_l = np.array([x_0])
-    for _t in range(1000):
-        x_l = np.append(x_l, np.array([dyn_l.apply_vector_field(x_l[-1])]), axis=0)
-    from dynamic import Cubic_Dynamic
-    q_dyn = Cubic_Dynamic(2)
-    q_dyn.learn_vector_field(_x[:-1], _x[1:])
-    x_q = np.array([x_0])
-    for _t in range(1000):
-        x_q = np.append(x_q, np.array([q_dyn.apply_vector_field(x_q[-1])]), axis=0)
-    plt.figure()
-    plt.plot(_x[:, 0], _x[:, 1], '-r', label='true')
-    plt.plot(x[:, 0], x[:, 1], '--b', label='quad')
-    plt.plot(x_l[:, 0], x_l[:, 1], ':g', label='linear')
-    plt.plot(x_q[:, 0], x_q[:, 1], '-.', color='purple', label='cubic')
-    plt.legend(loc='best')
-    plt.title('Quadratic VS Linear')
-
-    plt.show()
