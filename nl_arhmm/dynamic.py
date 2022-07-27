@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import minimize as minimize_function
 import copy
 from nl_arhmm.utils import normal_prob, log_normal_prob
 from nl_arhmm.utils import quaternion_product, quaternion_exponential
@@ -535,18 +536,20 @@ class Unit_Quaternion(object):
         return
 
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
-        # Function that has to be maximized
-        def to_maximize(param, hand):
-            exp_p = quaternion_product(
-                quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
-                data_set[:-1])
-            err = data_set[1:] - exp_p
-            err = np.reshape(err, [T, 1, 4])
-            err_t = np.transpose(err, [0, 2, 1])
-            return np.sum(gamma_set * err @ self.covariance_m[hand] @ err_t, 0)
-        # Inside this function we perform the gradient descent
-        pool = multiprocessing.Pool()
-        _out = pool.map(self.gradient, zip(data_set, gamma_set))
+        # # Function that has to be maximized
+        # def to_maximize_element(param, hand, data, gamma):
+        #     exp_p = quaternion_product(
+        #         quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
+        #         data[:-1])
+        #     err = data[1:] - exp_p
+        #     err = np.reshape(err, [T, 1, 4])
+        #     err_t = np.transpose(err, [0, 2, 1])
+        #     return np.sum(gamma * err @ self.covariance_m[hand] @ err_t, 0)
+        # # Inside this function we perform the gradient descent
+        # _out = pool.map(self.gradient, zip(data_set, gamma_set))
+
+        # == We use the minimize function from the optim package in scipy == #
+        self.vf_coeff[_h] = minimize_function(to_maximize, self.vf_coeff[_h], constraints = ((0, 2*np.pi) for _h in self.n_hands)) # verify if constraints make sense
         return
 
     def give_prob_of_next_step(self, q0, q1):
