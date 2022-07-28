@@ -468,9 +468,9 @@ class Unit_Quaternion(object):
 
     def __init__(self, n_hands):
         self.n_hands = n_hands
-        self.vf_coeff = [np.random.rand(3) for _ in self.n_hands]
-        self.vect_f = [quaternion_exponential(np.block([0, self.vf_coeff[_h]])) for _h in self.n_hands]
-        self.covariance_m = [np.eye(4) * 0.01 for _ in self.n_hands]
+        self.vf_coeff = [np.random.rand(3) for _ in range(self.n_hands)]
+        self.vect_f = [quaternion_exponential(np.block([0, self.vf_coeff[_h]])) for _h in range(self.n_hands)]
+        self.covariance_m = [np.eye(4) * 0.01 for _ in range(self.n_hands)]
         return
 
     # -- Functions to compute the gradient for the maximization step -- #
@@ -483,30 +483,31 @@ class Unit_Quaternion(object):
         H_mtrx = np.zeros([T, 3, 4])
         # vectors and matrices reshaped to achieve a T x dim x 1 final result
         p_r = np.reshape(self.vf_coeff[hand], [1, 3, 1])
-        p_norm = tc.reshape(np.linalg.norm(self.vf_coeff[hand]), [1, 1, 1])
+        p_norm = np.reshape(np.linalg.norm(self.vf_coeff[hand]), [1, 1, 1])
         sin_p = np.sin(p_norm)
         cos_p = np.cos(p_norm)
         # Skew symmetrix matrix
         skew_mtrx = np.zeros([T, 3, 3])
-        skew_mtrx[:, 0, 1] = - u_t[:, 2]
-        skew_mtrx[:, 0, 2] = u_t[:, 1]
-        skew_mtrx[:, 1, 0] = u_t[:, 2]
-        skew_mtrx[:, 1, 2] = - u_t[:, 0]
-        skew_mtrx[:, 2, 0] = - u_t[:, 1]
-        skew_mtrx[:, 2, 1] = u_t[:, 0]
+        skew_mtrx[:, 0, 1] = np.reshape(- u_t[:, 2], [T])
+        skew_mtrx[:, 0, 2] = np.reshape(u_t[:, 1], [T])
+        skew_mtrx[:, 1, 0] = np.reshape(u_t[:, 2], [T])
+        skew_mtrx[:, 1, 2] = np.reshape(- u_t[:, 0], [T])
+        skew_mtrx[:, 2, 0] = np.reshape(- u_t[:, 1], [T])
+        skew_mtrx[:, 2, 1] = np.reshape(u_t[:, 0], [T])
 
         ## first column
-        H_mtrx[:, :, 0] = \
-            - v_t * sin_p / p_norm * p_r + \
-            (p_norm * cos_p + sin_p / p_norm ** 3) * (np.transpose(p_r, [0, 2, 1]) @ u_t) * p_r + \
-            (- sin_p / p) * u_t
+        H_mtrx[:, :, 0] = np.reshape(
+            - v_t * sin_p / p_norm * p_r +
+            (p_norm * cos_p + sin_p / p_norm ** 3) * (np.transpose(p_r, [0, 2, 1]) @ u_t) * p_r +
+            (- sin_p / p_norm) * u_t,
+                [T, 3])
 
         ## last three columns
         H_mtrx[:, :, 1:] = \
             - sin_p / p_norm * p_r * np.transpose(u_t, [0, 2, 1]) + \
             v_t / p_norm / p_norm * (cos_p - sin_p / p_norm) * p_r * np.transpose(p_r, [0, 2, 1]) + \
             v_t * sin_p / p_norm * np.reshape(np.eye(3), [1, 3, 3]) + \
-            (cos_p - sin_p / p_norm) / p_norm / p_norm * p_r @ np.transpose((np.cross(p, u_t, axis=1)), [0, 2, 1]) + \
+            (cos_p - sin_p / p_norm) / p_norm / p_norm * p_r @ np.transpose((np.cross(p_r, u_t, axis=1)), [0, 2, 1]) + \
             sin_p / p_norm * skew_mtrx
 
         return H_mtrx
@@ -517,13 +518,12 @@ class Unit_Quaternion(object):
         for hand in range(self.n_hands):
             # here we insert the "weight" given by gamma
             H = self.matrix_H(data, hand) * np.reshape(gamma, [T, 1, 1])
-            # TODO the methods used next have to been implemented to work with different sized quaternions (to enable broadcasting)
             err = data[1:] - quaternion_product(
                 quaternion_exponential(
                     np.array([0, self.vf_coeff[hand][0], self.vf_coeff[hand][1], self.vf_coeff[hand][2]])),
                 data[:-1])
-            # TODO check dimensions of the next dot product
-            grad_list.append(-2 * np.sum(H @ self.inv(self.covariance_m[hand]) @ err, axis=0))
+            # The following gradient is (2-D) a 3 × 1 numpy array
+            grad_list.append(-2 * np.sum(H @ np.reshape(np.linalg.pinv(self.covariance_m[hand]), [1, 4, 4]) @ np.reshape(err, [T, 4, 1]), axis=0))
         return grad_list
 
     def estimate_cov_mtrx(self, input_set, output_set, weights=None):
@@ -927,4 +927,15 @@ class Linear_Hand_Quadratic_Gripper(object):
 if __name__ == "__main__":
 
     from dynamic import Unit_Quaternion
+    from nl_arhmm.utils import normalize_rows
 
+    # Setup dynamic
+    n_hands = 1
+    T = 20
+    dyn = Unit_Quaternion(n_hands)
+    data_set = [normalize_rows(np.random.rand(T, 4))]
+    gamma_set = [np.random.rand(T-1)] # gamma is one less than the data length
+
+    # Testing methods
+    print(dyn.matrix_H(data_set[0], 0))
+    print(dyn.gradient(data_set[0], gamma_set[0]))
