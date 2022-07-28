@@ -100,19 +100,60 @@ def quaternion_exponential(q):
     return q_out
 
 def quaternion_product(q0, q1):
-    if q0.ndim == 1:
+    if q0.ndim == 1 and q1.ndim == 1:
         q_out = np.block([
             q0[0] * q1[0] - np.dot(q0[1:], q1[1:]),
             q0[0] * q1[1:] + q1[0] * q0[1:] + np.cross(q0[1:], q1[1:])
             ])
-    else:
-        T = q0.shape[0]
+    elif q0.ndim == 1 and q1.ndim == 2:
+        T = q1.shape[0]
+        q0 = np.tile(q0, (T, 1))
         q_prod_scal = np.reshape(
-            q0[0,:] * q1[0,:] - np.sum(q0[:, 1:] * q1[:, 1:] , 1),
+                q0[:, 0] * q1[:, 0] - np.sum(q0[:, 1:] * q1[:, 1:] , 1),
             [T, 1])
         q_prod_vec = \
             np.reshape(q0[:,0], [T, 1]) * q1[:,1:] + \
-            np.reshape(q1[:,0], [T, 1]) * q2[:,1:] + \
+            np.reshape(q1[:,0], [T, 1]) * q0[:,1:] + \
             np.cross(q0[:,1:], q1[:,1:])
         q_out = np.block([q_prod_scal, q_prod_vec])
+    elif q0.ndim == 2 and q1.ndim == 1:
+        T = q0.shape[0]
+        q1 = np.tile(q1, (T, 1))
+        q_prod_scal = np.reshape(
+                q0[:, 0] * q1[:, 0] - np.sum(q0[:, 1:] * q1[:, 1:] , 1),
+            [T, 1])
+        q_prod_vec = \
+            np.reshape(q0[:,0], [T, 1]) * q1[:,1:] + \
+            np.reshape(q1[:,0], [T, 1]) * q0[:,1:] + \
+            np.cross(q0[:,1:], q1[:,1:])
+        q_out = np.block([q_prod_scal, q_prod_vec])
+    elif q0.ndim == 2 and q1.ndim == 2:
+        T = q0.shape[0]
+        q_prod_scal = np.reshape(
+                q0[:, 0] * q1[:, 0] - np.sum(q0[:, 1:] * q1[:, 1:] , 1),
+            [T, 1])
+        q_prod_vec = \
+            np.reshape(q0[:,0], [T, 1]) * q1[:,1:] + \
+            np.reshape(q1[:,0], [T, 1]) * q0[:,1:] + \
+            np.cross(q0[:,1:], q1[:,1:])
+        q_out = np.block([q_prod_scal, q_prod_vec])
+    else:
+        ValueError("quaternion_product: arguments must be 1-D or 2-D arrays. If both are 2-D, they must have identical shape")
     return q_out
+
+#───────#
+# TESTS #
+#───────#
+
+q0 = np.random.rand(4)
+q1 = np.random.rand(4)
+q2 = np.random.rand(10, 4)
+q3 = np.random.rand(10, 4)
+
+#print(quaternion_product(q0, q1))
+#print(quaternion_product(q0, q2))
+print(quaternion_product(q0, q2)[2] - quaternion_product(q0, q2[2]))
+#print(quaternion_product(q2, q1))
+print(quaternion_product(q2, q1)[2] - quaternion_product(q2[2], q1))
+#print(quaternion_product(q2, q3))
+print(quaternion_product(q2, q3)[2] - quaternion_product(q2[2], q3[2]))
