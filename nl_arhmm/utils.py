@@ -90,7 +90,7 @@ def quaternion_exponential(q):
     else:
         T = q.shape[0]
         exp_q_scal = np.reshape(
-                np.exp(q[:, 0]) * np.linalg.norm(q[:, 1:], axis=1),
+                np.exp(q[:, 0]) * np.cos(np.linalg.norm(q[:, 1:], axis=1)),
                 [T, 1]
                 )
         exp_q_vec = np.reshape(np.exp(q[:,0]) * np.sin(np.linalg.norm(q[:, 1:], axis=1)) / np.linalg.norm(q[:, 1:], axis=1), [T, 1]) * q[:, 1:]
@@ -145,15 +145,18 @@ def quaternion_product(q0, q1):
 # TESTS #
 #───────#
 
-q0 = np.random.rand(4)
-q1 = np.random.rand(4)
-q2 = np.random.rand(10, 4)
-q3 = np.random.rand(10, 4)
+#q0 = np.random.rand(4)
+#q1 = np.random.rand(4)
+#q2 = np.random.rand(10, 4)
+#q3 = np.random.rand(10, 4)
 
+#exp_q_block = quaternion_exponential(q2)
+#exp_q_comp = np.array([quaternion_exponential(q2[_l]) for _l in range(10)])
+#print(exp_q_block - exp_q_comp)
 #print(quaternion_product(q0, q1))
 #print(quaternion_product(q0, q2))
-print(quaternion_product(q0, q2)[2] - quaternion_product(q0, q2[2]))
+#print(quaternion_product(q0, q2)[2] - quaternion_product(q0, q2[2]))
 #print(quaternion_product(q2, q1))
-print(quaternion_product(q2, q1)[2] - quaternion_product(q2[2], q1))
+#print(quaternion_product(q2, q1)[2] - quaternion_product(q2[2], q1))
 #print(quaternion_product(q2, q3))
-print(quaternion_product(q2, q3)[2] - quaternion_product(q2[2], q3[2]))
+#print(quaternion_product(q2, q3)[2] - quaternion_product(q2[2], q3[2]))

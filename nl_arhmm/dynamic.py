@@ -548,8 +548,53 @@ class Unit_Quaternion(object):
         # # Inside this function we perform the gradient descent
         # _out = pool.map(self.gradient, zip(data_set, gamma_set))
 
-        # == We use the minimize function from the optim package in scipy == #
-        self.vf_coeff[_h] = minimize_function(to_maximize, self.vf_coeff[_h], constraints = ((0, 2*np.pi) for _h in self.n_hands)) # verify if constraints make sense
+        # Covariance matrix
+        # We define it now so that we can update the covariance matrices later without
+        Sigma = np.zeros([4*self.n_hands, 4*self.n_hands])
+        for _h in range(self.n_hands):
+            Sigma[_h*4:(_h+1)*4, _h*4:(_h+1)*4] = self.covariance_m[_h]
+        Sigma = np.reshape(Sigma, [1, 4*self.n_hands, 4*self.n_hands])
+        pool = multiprocessing.Pool()
+        def to_maximize_single_data_stream(coeff, data, gamma):
+            # expected output
+            exp_q = np.reshape(
+                np.block([
+                    quaternion_product(
+                        quaternion_exponential(np.array([0, coeff[0], coeff[1], corff[2]])),
+                        data[:-1, 4*_h : 4*(_h + 1)]
+                        )
+                    ] for _h in self.n_hands),
+                [T, 1, 4*self.n_hands]
+                )
+            # error
+            sum_error = np.sum(exp_q @ Sigma @ np.transpose(exp_q, [0,2,1]))
+            return sum_error
+        def to_maximize(coeff):
+            pool = multiprocessing.Pool()
+            error_list = pool.map(to_maximize_single_data_stream, zip(data_set, gamma_set))
+            return sum(error_list)
+        def maximize_covariance_component(data, gamma):
+            # expected output
+            exp_q = np.reshape(
+                np.block([
+                    quaternion_product(
+                        quaternion_exponential(np.array([0, coeff[0], coeff[1], corff[2]])),
+                        data[:-1, 4*_h : 4*(_h + 1)]
+                        )
+                    ] for _h in self.n_hands),
+                [T, 1, 4*self.n_hands]
+                )
+            sigma_num = np.sum(np.reshape(exp_q @ np.transpose(exp_q, [0, 2, 1]), [T]) * gamma)
+            sigma_den = np.sum(gamma)
+            return [sigma_num, sigma_den]
+        sigma_out = pool.map(maximize_covariance_component, zip(data_set, gamma_set))
+        sigma_num = sum([sigma_out[_y][0] for _y in range(len(data_set))])
+        sigma_den = sum([sigma_out[_y][1] for _y in range(len(data_set))])
+
+        # == We use the minimize function from the optim package in scipy to compute the coefficients of the vector field == #
+        for _h in range(self.n_hands):
+            self.vf_coeff[_h] = minimize_function(to_maximize, self.vf_coeff[_h])
+            self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
         return
 
     def give_prob_of_next_step(self, q0, q1):
@@ -939,3 +984,4 @@ if __name__ == "__main__":
     # Testing methods
     print(dyn.matrix_H(data_set[0], 0))
     print(dyn.gradient(data_set[0], gamma_set[0]))
+
