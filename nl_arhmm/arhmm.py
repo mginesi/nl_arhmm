@@ -245,34 +245,34 @@ class ARHMM(object):
         '''
         # Initialize the variables
         T = len(data_stream) - 1
-        T_1 = np.zeros([T, self.n_modes])
-        T_2 = np.zeros([T, self.n_modes])
+        T_1 = np.zeros([T + 1, self.n_modes])
+        T_2 = np.zeros([T + 1, self.n_modes])
 
         # Compute the basis of recursion
         for _s in range(self.n_modes):
-            T_1[0][_s] = self.dynamics[_s].give_log_prob_of_next_step(data_stream[0], data_stream[1]) + \
+            T_1[1][_s] = self.dynamics[_s].give_log_prob_of_next_step(data_stream[0], data_stream[1]) + \
                 self.initial.loginit[_s]
             # T_2[0] = 0.0
 
         # Recursion over time
         # FIXME: is it possible to vectorize something?
-        for _t in range(1, T):
+        for _t in range(2, T + 1):
             for _s in range(self.n_modes):
                 to_maximize = T_1[_t - 1] + self.transition.logtrans[:, _s] + \
-                    self.dynamics[_s].give_log_prob_of_next_step(data_stream[_t], data_stream[_t + 1])
+                    self.dynamics[_s].give_log_prob_of_next_step(data_stream[_t - 1], data_stream[_t])
                 _max = np.max(to_maximize)
                 _argmax = np.where(to_maximize == _max)[0][0]
                 T_1[_t, _s] = copy.deepcopy(_max)
                 T_2[_t, _s] = copy.deepcopy(_argmax)
 
         # Extract the most probable sequence
-        z = np.zeros(T)
-        max_T = np.max(T_1[T - 1])
-        argmax_T = np.where(T_1[T - 1] == max_T)[0][0]
+        z = np.zeros(T + 1)
+        max_T = np.max(T_1[T])
+        argmax_T = np.where(T_1[T] == max_T)[0][0]
         z[-1] = int(argmax_T)
-        for _t in range(T - 1, 0, -1):
+        for _t in range(T, 1, -1):
             z[_t - 1] = T_2[_t, int(z[_t])]
-        return z
+        return z[1:]
 
     # --------------------------------------------------------------------------------------- #
     #                              Expectation step functions                                 #
