@@ -535,18 +535,23 @@ class Unit_Quaternion(object):
     def maximize_emission_elements(self, in_arg):
         return
 
+    # ======================================================================== #
+    #                         LIKELIHOOD MAXIMIZATION                          #
+
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
-        # # Function that has to be maximized
-        # def to_maximize_element(param, hand, data, gamma):
-        #     exp_p = quaternion_product(
-        #         quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
-        #         data[:-1])
-        #     err = data[1:] - exp_p
-        #     err = np.reshape(err, [T, 1, 4])
-        #     err_t = np.transpose(err, [0, 2, 1])
-        #     return np.sum(gamma * err @ self.covariance_m[hand] @ err_t, 0)
-        # # Inside this function we perform the gradient descent
-        # _out = pool.map(self.gradient, zip(data_set, gamma_set))
+        '''
+        # Function that has to be maximized
+        def to_maximize_element(param, hand, data, gamma):
+            exp_p = quaternion_product(
+                quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
+                data[:-1])
+            err = data[1:] - exp_p
+            err = np.reshape(err, [T, 1, 4])
+            err_t = np.transpose(err, [0, 2, 1])
+            return np.sum(gamma * err @ self.covariance_m[hand] @ err_t, 0)
+        # Inside this function we perform the gradient descent
+        _out = pool.map(self.gradient, zip(data_set, gamma_set))
+        '''
 
         # Covariance matrix
         # We define it now so that we can update the covariance matrices later without
@@ -555,38 +560,10 @@ class Unit_Quaternion(object):
             Sigma[_h*4:(_h+1)*4, _h*4:(_h+1)*4] = self.covariance_m[_h]
         Sigma = np.reshape(Sigma, [1, 4*self.n_hands, 4*self.n_hands])
         pool = multiprocessing.Pool()
-        def to_maximize_single_data_stream(coeff, data, gamma):
-            # expected output
-            exp_q = np.reshape(
-                np.block([
-                    quaternion_product(
-                        quaternion_exponential(np.array([0, coeff[0], coeff[1], corff[2]])),
-                        data[:-1, 4*_h : 4*(_h + 1)]
-                        )
-                    ] for _h in self.n_hands),
-                [T, 1, 4*self.n_hands]
-                )
-            # error
-            sum_error = np.sum(exp_q @ Sigma @ np.transpose(exp_q, [0,2,1]))
-            return sum_error
         def to_maximize(coeff):
             pool = multiprocessing.Pool()
-            error_list = pool.map(to_maximize_single_data_stream, zip(data_set, gamma_set))
+            error_list = pool.map(self.to_maximize_single_data_stream, zip([self.vf_coeff for _ in range(len(data_set))], data_set, gamma_set, [Sigma for _ in range(len(data_set))]))
             return sum(error_list)
-        def maximize_covariance_component(data, gamma):
-            # expected output
-            exp_q = np.reshape(
-                np.block([
-                    quaternion_product(
-                        quaternion_exponential(np.array([0, coeff[0], coeff[1], corff[2]])),
-                        data[:-1, 4*_h : 4*(_h + 1)]
-                        )
-                    ] for _h in self.n_hands),
-                [T, 1, 4*self.n_hands]
-                )
-            sigma_num = np.sum(np.reshape(exp_q @ np.transpose(exp_q, [0, 2, 1]), [T]) * gamma)
-            sigma_den = np.sum(gamma)
-            return [sigma_num, sigma_den]
         sigma_out = pool.map(maximize_covariance_component, zip(data_set, gamma_set))
         sigma_num = sum([sigma_out[_y][0] for _y in range(len(data_set))])
         sigma_den = sum([sigma_out[_y][1] for _y in range(len(data_set))])
@@ -596,6 +573,54 @@ class Unit_Quaternion(object):
             self.vf_coeff[_h] = minimize_function(to_maximize, self.vf_coeff[_h])
             self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
         return
+
+    def to_maximize_single_data_stream(self, _args):
+        coeff = _args[0]
+        data = _args[1]
+        T = data.shape[0]
+        gamma = _args[2]
+        Sigma = _args[3]
+        # expected output
+        exp_q = np.reshape(
+            np.block([
+                quaternion_product(
+                    quaternion_exponential(np.array([0, coeff[_h][0], coeff[_h][1], coeff[_h][2]])),
+                    data[:-1, 4*_h : 4*(_h + 1)]
+                    )
+                for _h in range(self.n_hands)]),
+            [T-1, 1, 4*self.n_hands]
+            )
+        err_q = np.transpose(np.reshape(data[1:], [T-1, 4*self.n_hands,1]), [0,2,1]) - exp_q
+        # error
+        sum_error = np.sum(err_q @ Sigma @ np.transpose(err_q, [0,2,1]))
+        return sum_error
+
+    def maximize_covariance_component(self, _args):
+        coeff = _args[0]
+        data = _args[1]
+        T = data.shape[0]
+        gamma = _args[2]
+        # expected output
+        exp_q = np.reshape(
+            np.block([
+                quaternion_product(
+                    quaternion_exponential(np.array([0, coeff[_h][0], coeff[_h][1], coeff[_h][2]])),
+                    data[:-1, 4*_h : 4*(_h + 1)]
+                    )
+                for _h in range(self.n_hands)]),
+            [T-1, 4*self.n_hands, 1]
+            )
+        err_q = np.transpose(np.reshape(data[1:], [T-1, 4*self.n_hands,1]), [0,2,1]) - exp_q
+        sigma_num_tmp = np.sum(err_q @ np.transpose(err_q, [0, 2, 1]) * np.reshape(gamma[1:], [T-1,1,1]), 0)
+        # each hand is assumed to be independent to the others; thus we impose
+        # the off-diagonal blocks to be zero
+        sigma_num = np.zeros([4*self.n_hands, 4*self.n_hands])
+        for _h in range(self.n_hands):
+            sigma_num[4*_h:4*(_h+1), 4*_h:4*(_h+1)] = sigma_num_tmp[4*_h:4*(_h+1), 4*_h:4*(_h+1)]
+        sigma_den = np.sum(gamma)
+        return [sigma_num, sigma_den]
+
+    # ======================================================================== #
 
     def give_prob_of_next_step(self, q0, q1):
         mu = self.apply_vector_field(q0)
@@ -975,7 +1000,7 @@ if __name__ == "__main__":
     from nl_arhmm.utils import normalize_rows
 
     # Setup dynamic
-    n_hands = 1
+    n_hands = 2
     T = 20
     dyn = Unit_Quaternion(n_hands)
     data_set = [normalize_rows(np.random.rand(T, 4))]
@@ -985,3 +1010,11 @@ if __name__ == "__main__":
     print(dyn.matrix_H(data_set[0], 0))
     print(dyn.gradient(data_set[0], gamma_set[0]))
 
+    # Testing the EM functions
+    coeff = [np.random.rand(3) for _h in range(n_hands)]
+    data = normalize_rows(np.random.rand(T, 4*n_hands))
+    Sigma = np.random.rand(4*n_hands,4*n_hands)
+    Sigma = Sigma @ Sigma.transpose()
+    gamma = np.random.rand(T)
+    print(dyn.to_maximize_single_data_stream([coeff, data, gamma, Sigma]))
+    print(dyn.maximize_covariance_component([coeff, data, gamma]))
