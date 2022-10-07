@@ -559,22 +559,37 @@ class Unit_Quaternion(object):
         for _h in range(self.n_hands):
             Sigma[_h*4:(_h+1)*4, _h*4:(_h+1)*4] = self.covariance_m[_h]
         Sigma = np.reshape(Sigma, [1, 4*self.n_hands, 4*self.n_hands])
-        pool = multiprocessing.Pool()
-        def to_maximize(coeff):
-            pool = multiprocessing.Pool()
-            error_list = pool.map(self.to_maximize_single_data_stream, zip([self.vf_coeff for _ in range(len(data_set))], data_set, gamma_set, [Sigma for _ in range(len(data_set))]))
-            return sum(error_list)
-        sigma_out = pool.map(maximize_covariance_component, zip(data_set, gamma_set))
-        sigma_num = sum([sigma_out[_y][0] for _y in range(len(data_set))])
-        sigma_den = sum([sigma_out[_y][1] for _y in range(len(data_set))])
+        # pool = multiprocessing.Pool()
+        # def to_maximize(coeff):
+        #     pool = multiprocessing.Pool()
+        #     error_list = pool.map(self.to_maximize_single_data_stream, zip([self.vf_coeff for _ in range(len(data_set))], data_set, gamma_set, [Sigma for _ in range(len(data_set))]))
+        #     return sum(error_list)
+        def to_minimize(coeff):
+            err_list = []
+            for _n in range(len(data_set)):
+                err_list.append(copy.deepcopy(self.to_minimize_single_data_stream([coeff, data_set[_n], gamma_set[_n], Sigma])))
+            return sum(err_list)
+        # sigma_out = pool.map(self.maximize_covariance_component, zip([self.vf_coeff for _ in range(len(data_set))], data_set, gamma_set))
+        # sigma_num = sum([sigma_out[_y][0] for _y in range(len(data_set))])
+        # sigma_den = sum([sigma_out[_y][1] for _y in range(len(data_set))])
+        _sigma_num = []
+        _sigma_den = []
+        for _n in range(len(data_set)):
+            [_sn, _sd] = self.maximize_covariance_component([self.vf_coeff, data_set[_n], gamma_set[_n]])
+            _sigma_num.append(copy.deepcopy(_sn))
+            _sigma_den.append(copy.deepcopy(_sd))
+        sigma_num = sum(_sigma_num)
+        sigma_den = sum(_sigma_den)
 
         # == We use the minimize function from the optim package in scipy to compute the coefficients of the vector field == #
+        _coeff = minimize_function(to_minimize, copy.deepcopy(self.vf_coeff))
+
         for _h in range(self.n_hands):
-            self.vf_coeff[_h] = minimize_function(to_maximize, self.vf_coeff[_h])
             self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
+            self.vf_coeff[_h] = np.array(_coeff[3*_h:3*(_h+1)])
         return
 
-    def to_maximize_single_data_stream(self, _args):
+    def to_minimize_single_data_stream(self, _args):
         coeff = _args[0]
         data = _args[1]
         T = data.shape[0]
@@ -1007,8 +1022,10 @@ if __name__ == "__main__":
     gamma_set = [np.random.rand(T-1)] # gamma is one less than the data length
 
     # Testing methods
+    '''
     print(dyn.matrix_H(data_set[0], 0))
     print(dyn.gradient(data_set[0], gamma_set[0]))
+    '''
 
     # Testing the EM functions
     coeff = [np.random.rand(3) for _h in range(n_hands)]
@@ -1016,5 +1033,8 @@ if __name__ == "__main__":
     Sigma = np.random.rand(4*n_hands,4*n_hands)
     Sigma = Sigma @ Sigma.transpose()
     gamma = np.random.rand(T)
-    print(dyn.to_maximize_single_data_stream([coeff, data, gamma, Sigma]))
-    print(dyn.maximize_covariance_component([coeff, data, gamma]))
+    '''
+    print(dyn.to_minimize_single_data_stream([coeff, data, gamma, Sigma]))
+    print(dyn.minimize_covariance_component([coeff, data, gamma]))
+    '''
+    print(dyn.maximize_emission([data], [gamma]))
