@@ -582,7 +582,12 @@ class Unit_Quaternion(object):
         sigma_den = sum(_sigma_den)
 
         # == We use the minimize function from the optim package in scipy to compute the coefficients of the vector field == #
-        _coeff = minimize_function(to_minimize, copy.deepcopy(self.vf_coeff))
+        vf_coeff_list = [] # the vector field coefficient must be a list to be used in minimize_function
+        for _h in range(self.n_hands):
+            vf_coeff_list += [_coeff for _coeff in self.vf_coeff[_h]]
+        _opt_out = minimize_function(to_minimize, copy.deepcopy(vf_coeff_list))
+        _coeff = _opt_out.x
+        print(_coeff)
 
         for _h in range(self.n_hands):
             self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
@@ -590,12 +595,15 @@ class Unit_Quaternion(object):
         return
 
     def to_minimize_single_data_stream(self, _args):
-        coeff = _args[0]
+        coeff_list = _args[0]
         data = _args[1]
         T = data.shape[0]
         gamma = _args[2]
         Sigma = _args[3]
         # expected output
+        coeff = []
+        for _h in range(len(coeff_list) // 3):
+            coeff.append(np.array(coeff_list[_h * 3 : (_h+1)*3]))
         exp_q = np.reshape(
             np.block([
                 quaternion_product(
@@ -1035,6 +1043,6 @@ if __name__ == "__main__":
     gamma = np.random.rand(T)
     '''
     print(dyn.to_minimize_single_data_stream([coeff, data, gamma, Sigma]))
-    print(dyn.minimize_covariance_component([coeff, data, gamma]))
+    print(dyn.maximize_covariance_component([coeff, data, gamma]))
     '''
     print(dyn.maximize_emission([data], [gamma]))
