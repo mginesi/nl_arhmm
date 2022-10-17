@@ -166,7 +166,8 @@ class ARHMM(object):
         alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
         c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
         new_lh = self.give_log_likelihood(c_stream)
-        print('Step 0: LH = ' + str(new_lh))
+        if verbose:
+            print('Step 0: LH = ' + str(new_lh))
         convergence = False
         while not convergence:
             count += 1
@@ -503,6 +504,25 @@ class Decoupled_Linear_ARHMM(ARHMM):
         self.dynamics = []
         for _m in range(self.n_modes):
             self.dynamics.append(Multiple_Linear(self.n_hand, n_dim))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
+class Unit_Quaternion_ARHMM(ARHMM):
+
+    def __init__(self, n_modes, n_hand, correction=1e-08):
+        '''
+        Class to implement Unit Quaternion Auto-Regressive Hidden Markov Models.
+        '''
+        from nl_arhmm.dynamic import Unit_Quaternion
+
+        self.n_hand = n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.n_dim = self.n_hand * 4
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Unit_Quaternion(self.n_hand))
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 

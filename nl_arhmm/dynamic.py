@@ -587,7 +587,6 @@ class Unit_Quaternion(object):
             vf_coeff_list += [_coeff for _coeff in self.vf_coeff[_h]]
         _opt_out = minimize_function(to_minimize, copy.deepcopy(vf_coeff_list))
         _coeff = _opt_out.x
-        print(_coeff)
 
         for _h in range(self.n_hands):
             self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
@@ -654,8 +653,8 @@ class Unit_Quaternion(object):
 
     def give_log_prob_of_next_step(self, q0, q1):
         mu = self.apply_vector_field(q0)
-        Sigma = np.zeros([self.n_hands * 4, self.n_hans * 4])
-        for _h in self.n_hands:
+        Sigma = np.zeros([self.n_hands * 4, self.n_hands * 4])
+        for _h in range(self.n_hands):
             Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
         return log_normal_prob(q0, mu, Sigma)
 
@@ -664,7 +663,7 @@ class Unit_Quaternion(object):
         for _h in range(self.n_hands):
             list_out.append(
                 normalize_vect(
-                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4])
+                    quaternion_product(self.vect_f[_h], q[_h * 4: (_h + 1) * 4])
                 ))
         out = np.block(list_out)
         return out
@@ -674,7 +673,7 @@ class Unit_Quaternion(object):
         for _h in range(self.n_hands):
             list_out.append(
                 normalize_vect(
-                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4]) + self.covariance_m[_h] @ np.random.randn(4)
+                    quaternion_product(self.vect_f[_h], q[_h * 4: (_h + 1) * 4]) + self.covariance_m[_h] @ np.random.randn(4)
                 ))
         out = np.block(list_out)
         return out
@@ -1045,4 +1044,6 @@ if __name__ == "__main__":
     print(dyn.to_minimize_single_data_stream([coeff, data, gamma, Sigma]))
     print(dyn.maximize_covariance_component([coeff, data, gamma]))
     '''
+    print(dyn.vf_coeff)
     print(dyn.maximize_emission([data], [gamma]))
+    print(dyn.vf_coeff)
