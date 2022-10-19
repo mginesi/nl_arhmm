@@ -526,3 +526,22 @@ class Unit_Quaternion_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
+class Pose_ARHMM(ARHMM):
+
+    def __init__(self, n_modes, n_hand, correction=1e-08):
+        '''
+        Class to implement Unit Quaternion Auto-Regressive Hidden Markov Models.
+        '''
+        from nl_arhmm.dynamic import Pose_Linear
+
+        self.n_hand = n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.n_dim = self.n_hand * 7
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Pose_Linear(self.n_hand))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
