@@ -590,7 +590,6 @@ class Unit_Quaternion(object):
 
         for _h in range(self.n_hands):
             self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
-            self.vf_coeff[_h] = np.array(_coeff[3*_h:3*(_h+1)])
         return
 
     def to_minimize_single_data_stream(self, _args):
@@ -633,7 +632,7 @@ class Unit_Quaternion(object):
             [T-1, 4*self.n_hands, 1]
             )
         err_q = np.transpose(np.reshape(data[1:], [T-1, 4*self.n_hands,1]), [0,2,1]) - exp_q
-        sigma_num_tmp = np.sum(err_q @ np.transpose(err_q, [0, 2, 1]) * np.reshape(gamma[1:], [T-1,1,1]), 0)
+        sigma_num_tmp = np.sum(err_q @ np.transpose(err_q, [0, 2, 1]) * np.reshape(gamma, [T-1,1,1]), 0)
         # each hand is assumed to be independent to the others; thus we impose
         # the off-diagonal blocks to be zero
         sigma_num = np.zeros([4*self.n_hands, 4*self.n_hands])
@@ -644,19 +643,19 @@ class Unit_Quaternion(object):
 
     # ======================================================================== #
 
-    def give_prob_of_next_step(self, q0, q1):
-        mu = self.apply_vector_field(q0)
+    def give_prob_of_next_step(self, q_old, q_new):
+        mu = self.apply_vector_field(q_old)
         Sigma = np.zeros([self.n_hands * 4, self.n_hans * 4])
         for _h in self.n_hands:
             Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
-        return normal_prob(q0, mu, Sigma)
+        return normal_prob(q_new, mu, Sigma)
 
-    def give_log_prob_of_next_step(self, q0, q1):
-        mu = self.apply_vector_field(q0)
+    def give_log_prob_of_next_step(self, q_old, q_new):
+        mu = self.apply_vector_field(q_old)
         Sigma = np.zeros([self.n_hands * 4, self.n_hands * 4])
         for _h in range(self.n_hands):
-            Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
-        return log_normal_prob(q0, mu, Sigma)
+            Sigma[_h * 4 : (_h + 1) * 4, _h * 4 : (_h + 1) * 4] = self.covariance_m[_h]
+        return log_normal_prob(q_new, mu, Sigma)
 
     def apply_vector_field(self, q):
         list_out = []
@@ -1039,11 +1038,12 @@ if __name__ == "__main__":
     data = normalize_rows(np.random.rand(T, 4*n_hands))
     Sigma = np.random.rand(4*n_hands,4*n_hands)
     Sigma = Sigma @ Sigma.transpose()
-    gamma = np.random.rand(T)
+    gamma = np.random.rand(T-1)
     '''
     print(dyn.to_minimize_single_data_stream([coeff, data, gamma, Sigma]))
-    print(dyn.maximize_covariance_component([coeff, data, gamma]))
-    '''
     print(dyn.vf_coeff)
+    print(dyn.maximize_covariance_component([coeff, data, gamma]))
     print(dyn.maximize_emission([data], [gamma]))
     print(dyn.vf_coeff)
+    print(dyn.give_log_prob_of_next_step(data[0], data[1]))
+    '''
