@@ -1011,39 +1011,106 @@ class Linear_Hand_Quadratic_Gripper(object):
             covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
         return self.apply_vector_field(x) + covariance @ np.random.randn(self.n_dim)
 
+class Pose_Linear(object):
+    def __init__(self, n_hands):
+        from nl_arhmm.dynamic import Linear_Dynamic, Unit_Quaternion
+        self.n_hands = n_hands
+        self.cart_dyn = [Linear_Dynamic(3) for _h in range(n_hands)]
+        self.unit_quat = [Unit_Quaternion(1) for _h in range(n_hands)]
+        return
+
+    def learn_vector_field(self, _in_set, _out_set):
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        return
+
+    def simulate_step(self, y):
+        y_out = np.zeros(7 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[_h * 7 : _h * 7 + 3] = self.cart_dyn[_h].simulate_step(y[_h * 7 : _h * 7 + 3]) # h-th cartesian
+            y_out[_h * 7 + 3 : _h * 7 + 7] = self.unit_quat[_h].simulate_step(y[_h * 7 + 3 : _h * 7 + 7]) # h-th quaternion
+        return y_out
+
+    def apply_vector_field(self, y):
+        y_out = np.zeros(7 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[_h * 7 : _h * 7 + 3] = self.cart_dyn[_h].apply_vector_field(y[_h * 7 : _h * 7 + 3]) # h-th cartesian
+            y_out[_h * 7 + 3 : _h * 7 + 7] = self.unit_quat[_h].apply_vector_field(y[_h * 7 + 3 : _h * 7 + 7]) # h-th quaternion
+        return y_out
+
+    def give_log_prob_of_next_step(self, y_past, y_pres):
+        logprob = 0
+        for _h in range(self.n_hands):
+            logprob += self.cart_dyn[_h].give_log_prob_of_next_step(y_past[_h * 7 : _h * 7 + 3], y_pres[_h * 7 : _h * 7 + 3]) # h-th cartesian
+            logprob += self.unit_quat[_h].give_log_prob_of_next_step(y_past[_h * 7 + 3 : _h * 7 + 7], y_pres[_h * 7 + 3 : _h * 7 + 7]) # h-th quaternion
+        return logprob
+
+    def maximize_emission(self, data_set, gamma_set):
+        for _h in range(self.n_hands):
+            _data_set_cart = [_data[:, _h * 7 : _h * 7 + 3] for _data in data_set]
+            _data_set_quat = [_data[:, _h * 7 + 3 : _h * 7 + 7] for _data in data_set]
+            self.cart_dyn[_h].maximize_emission(_data_set_cart, gamma_set)
+            self.unit_quat[_h].maximize_emission(_data_set_quat, gamma_set)
+        return
+
+
+#===============================================================================#
+# The following code is a "template" on how to write a new ARHMM generalization #
+#===============================================================================#
+'''
+class New_ARHMM(object):
+    def __init__(self,):
+        return
+
+    #==========================================================================#
+    # the next two functions are used only in the initialization of the AR-HMM #
+    #==========================================================================#
+    def learn_vector_field(self, _in_set, _out_set):
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        return
+
+    #=========================================================#
+    # next functions are used to simulate and learn the model #
+    #=========================================================#
+    def simulate_step(self, y):
+        return
+
+    def apply_vector_field(self, y):
+        return
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        return
+
+    def maximize_emission(self, data_set, gamma_set):
+        return
+'''
+
 #───────────────────────────────#
 # Methods to test the functions #
 #───────────────────────────────#
 
 if __name__ == "__main__":
 
-    from dynamic import Unit_Quaternion
+    from dynamic import Pose_Linear
     from nl_arhmm.utils import normalize_rows
 
     # Setup dynamic
     n_hands = 2
     T = 20
-    dyn = Unit_Quaternion(n_hands)
-    data_set = [normalize_rows(np.random.rand(T, 4))]
-    gamma_set = [np.random.rand(T-1)] # gamma is one less than the data length
-
-    # Testing methods
-    '''
-    print(dyn.matrix_H(data_set[0], 0))
-    print(dyn.gradient(data_set[0], gamma_set[0]))
-    '''
+    dyn = Pose_Linear(n_hands)
 
     # Testing the EM functions
     coeff = [np.random.rand(3) for _h in range(n_hands)]
-    data = normalize_rows(np.random.rand(T, 4*n_hands))
-    Sigma = np.random.rand(4*n_hands,4*n_hands)
-    Sigma = Sigma @ Sigma.transpose()
+    data = normalize_rows(np.random.rand(T, 7*n_hands))
     gamma = np.random.rand(T-1)
-    '''
-    print(dyn.to_minimize_single_data_stream([coeff, data, gamma, Sigma]))
-    print(dyn.vf_coeff)
-    print(dyn.maximize_covariance_component([coeff, data, gamma]))
-    print(dyn.maximize_emission([data], [gamma]))
-    print(dyn.vf_coeff)
+    print("test dynamic step")
+    print(dyn.simulate_step(np.random.rand(7*n_hands)))
+    print("test apply vector field")
+    print(dyn.apply_vector_field(np.random.rand(7*n_hands)))
+    print("test log probability")
     print(dyn.give_log_prob_of_next_step(data[0], data[1]))
-    '''
+    print("test maximize emission")
+    print(dyn.maximize_emission([data], [gamma]))
