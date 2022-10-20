@@ -1107,7 +1107,7 @@ if __name__ == "__main__":
     data = normalize_rows(np.random.rand(T, 7*n_hands))
     gamma = np.random.rand(T-1)
     print("test dynamic step")
-    print(dyn.simulate_step(np.random.rand(7*n_hands)))
+    print(dyn.simulate_step(data[0]))
     print("test apply vector field")
     print(dyn.apply_vector_field(np.random.rand(7*n_hands)))
     print("test log probability")
