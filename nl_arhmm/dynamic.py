@@ -589,7 +589,7 @@ class Unit_Quaternion(object):
         _coeff = _opt_out.x
 
         for _h in range(self.n_hands):
-            self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
+            self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1),4*_h : 4*(_h+1)] / sigma_den
         return
 
     def to_minimize_single_data_stream(self, _args):
@@ -1094,23 +1094,30 @@ class New_ARHMM(object):
 
 if __name__ == "__main__":
 
-    from dynamic import Pose_Linear
+    from dynamic import Unit_Quaternion as model_test
     from nl_arhmm.utils import normalize_rows
 
     # Setup dynamic
     n_hands = 2
     T = 20
-    dyn = Pose_Linear(n_hands)
+    dyn = model_test(n_hands)
 
     # Testing the EM functions
     coeff = [np.random.rand(3) for _h in range(n_hands)]
-    data = normalize_rows(np.random.rand(T, 7*n_hands))
+    data = normalize_rows(np.random.rand(T, 4*n_hands))
     gamma = np.random.rand(T-1)
     print("test dynamic step")
-    print(dyn.simulate_step(np.random.rand(7*n_hands)))
+    print(dyn.simulate_step(np.random.rand(4*n_hands)))
     print("test apply vector field")
-    print(dyn.apply_vector_field(np.random.rand(7*n_hands)))
+    print(dyn.apply_vector_field(np.random.rand(4*n_hands)))
     print("test log probability")
     print(dyn.give_log_prob_of_next_step(data[0], data[1]))
     print("test maximize emission")
     print(dyn.maximize_emission([data], [gamma]))
+    print("test dynamic step")
+    print(dyn.simulate_step(np.random.rand(4*n_hands)))
+    print("test apply vector field")
+    print(dyn.apply_vector_field(np.random.rand(4*n_hands)))
+    print("test log probability")
+    print(dyn.give_log_prob_of_next_step(data[0], data[1]))
+

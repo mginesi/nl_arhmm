@@ -24,7 +24,7 @@ norm = colors.BoundaryNorm(bounds, cmap.N)
 # ARHMM
 
 # Model Definition
-model_true = Unit_Quaternion_ARHMM(3, 1)
+model_true = Unit_Quaternion_ARHMM(3, 2)
 model_true.transition.trans_mtrx = np.array([
     [0.90, 0.05, 0.05],
     [0.05, 0.90, 0.05],
@@ -40,7 +40,7 @@ model_true.dynamics[1].vect_f = [quaternion_exponential(np.array([0, 0, 1, 0]))]
 model_true.dynamics[2].vf_coeff = [np.array([0,0,1])]
 model_true.dynamics[2].vect_f = [quaternion_exponential(np.array([0, 0, 0, 1]))]
 
-model_infer = Unit_Quaternion_ARHMM(3, 1)
+model_infer = Unit_Quaternion_ARHMM(3, 2)
 
 # Model Simulation
 n_data = 10
