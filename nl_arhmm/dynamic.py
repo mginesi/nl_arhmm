@@ -535,18 +535,23 @@ class Unit_Quaternion(object):
     def maximize_emission_elements(self, in_arg):
         return
 
+    # ======================================================================== #
+    #                         LIKELIHOOD MAXIMIZATION                          #
+
     def maximize_emission(self, data_set, gamma_set, correction=1e-10):
-        # # Function that has to be maximized
-        # def to_maximize_element(param, hand, data, gamma):
-        #     exp_p = quaternion_product(
-        #         quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
-        #         data[:-1])
-        #     err = data[1:] - exp_p
-        #     err = np.reshape(err, [T, 1, 4])
-        #     err_t = np.transpose(err, [0, 2, 1])
-        #     return np.sum(gamma * err @ self.covariance_m[hand] @ err_t, 0)
-        # # Inside this function we perform the gradient descent
-        # _out = pool.map(self.gradient, zip(data_set, gamma_set))
+        '''
+        # Function that has to be maximized
+        def to_maximize_element(param, hand, data, gamma):
+            exp_p = quaternion_product(
+                quaternion_exponential(np.array([0, param[0], param[1], param[2]])),
+                data[:-1])
+            err = data[1:] - exp_p
+            err = np.reshape(err, [T, 1, 4])
+            err_t = np.transpose(err, [0, 2, 1])
+            return np.sum(gamma * err @ self.covariance_m[hand] @ err_t, 0)
+        # Inside this function we perform the gradient descent
+        _out = pool.map(self.gradient, zip(data_set, gamma_set))
+        '''
 
         # Covariance matrix
         # We define it now so that we can update the covariance matrices later without
@@ -554,69 +559,110 @@ class Unit_Quaternion(object):
         for _h in range(self.n_hands):
             Sigma[_h*4:(_h+1)*4, _h*4:(_h+1)*4] = self.covariance_m[_h]
         Sigma = np.reshape(Sigma, [1, 4*self.n_hands, 4*self.n_hands])
-        pool = multiprocessing.Pool()
-        def to_maximize_single_data_stream(coeff, data, gamma):
-            # expected output
-            exp_q = np.reshape(
-                np.block([
-                    quaternion_product(
-                        quaternion_exponential(np.array([0, coeff[0], coeff[1], corff[2]])),
-                        data[:-1, 4*_h : 4*(_h + 1)]
-                        )
-                    ] for _h in self.n_hands),
-                [T, 1, 4*self.n_hands]
-                )
-            # error
-            sum_error = np.sum(exp_q @ Sigma @ np.transpose(exp_q, [0,2,1]))
-            return sum_error
-        def to_maximize(coeff):
-            pool = multiprocessing.Pool()
-            error_list = pool.map(to_maximize_single_data_stream, zip(data_set, gamma_set))
-            return sum(error_list)
-        def maximize_covariance_component(data, gamma):
-            # expected output
-            exp_q = np.reshape(
-                np.block([
-                    quaternion_product(
-                        quaternion_exponential(np.array([0, coeff[0], coeff[1], corff[2]])),
-                        data[:-1, 4*_h : 4*(_h + 1)]
-                        )
-                    ] for _h in self.n_hands),
-                [T, 1, 4*self.n_hands]
-                )
-            sigma_num = np.sum(np.reshape(exp_q @ np.transpose(exp_q, [0, 2, 1]), [T]) * gamma)
-            sigma_den = np.sum(gamma)
-            return [sigma_num, sigma_den]
-        sigma_out = pool.map(maximize_covariance_component, zip(data_set, gamma_set))
-        sigma_num = sum([sigma_out[_y][0] for _y in range(len(data_set))])
-        sigma_den = sum([sigma_out[_y][1] for _y in range(len(data_set))])
+        # pool = multiprocessing.Pool()
+        # def to_maximize(coeff):
+        #     pool = multiprocessing.Pool()
+        #     error_list = pool.map(self.to_maximize_single_data_stream, zip([self.vf_coeff for _ in range(len(data_set))], data_set, gamma_set, [Sigma for _ in range(len(data_set))]))
+        #     return sum(error_list)
+        def to_minimize(coeff):
+            err_list = []
+            for _n in range(len(data_set)):
+                err_list.append(copy.deepcopy(self.to_minimize_single_data_stream([coeff, data_set[_n], gamma_set[_n], Sigma])))
+            return sum(err_list)
+        # sigma_out = pool.map(self.maximize_covariance_component, zip([self.vf_coeff for _ in range(len(data_set))], data_set, gamma_set))
+        # sigma_num = sum([sigma_out[_y][0] for _y in range(len(data_set))])
+        # sigma_den = sum([sigma_out[_y][1] for _y in range(len(data_set))])
+        _sigma_num = []
+        _sigma_den = []
+        for _n in range(len(data_set)):
+            [_sn, _sd] = self.maximize_covariance_component([self.vf_coeff, data_set[_n], gamma_set[_n]])
+            _sigma_num.append(copy.deepcopy(_sn))
+            _sigma_den.append(copy.deepcopy(_sd))
+        sigma_num = sum(_sigma_num)
+        sigma_den = sum(_sigma_den)
 
         # == We use the minimize function from the optim package in scipy to compute the coefficients of the vector field == #
+        vf_coeff_list = [] # the vector field coefficient must be a list to be used in minimize_function
         for _h in range(self.n_hands):
-            self.vf_coeff[_h] = minimize_function(to_maximize, self.vf_coeff[_h])
+            vf_coeff_list += [_coeff for _coeff in self.vf_coeff[_h]]
+        _opt_out = minimize_function(to_minimize, copy.deepcopy(vf_coeff_list))
+        _coeff = _opt_out.x
+
+        for _h in range(self.n_hands):
             self.covariance_m[_h] = sigma_num[4*_h : 4*(_h+1)] / sigma_den
         return
 
-    def give_prob_of_next_step(self, q0, q1):
-        mu = self.apply_vector_field(q0)
-        Sigma = np.zeros([self.n_hands * 4, self.n_hans * 4])
-        for _h in self.n_hands:
-            Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
-        return normal_prob(q0, mu, Sigma)
+    def to_minimize_single_data_stream(self, _args):
+        coeff_list = _args[0]
+        data = _args[1]
+        T = data.shape[0]
+        gamma = _args[2]
+        Sigma = _args[3]
+        # expected output
+        coeff = []
+        for _h in range(len(coeff_list) // 3):
+            coeff.append(np.array(coeff_list[_h * 3 : (_h+1)*3]))
+        exp_q = np.reshape(
+            np.block([
+                quaternion_product(
+                    quaternion_exponential(np.array([0, coeff[_h][0], coeff[_h][1], coeff[_h][2]])),
+                    data[:-1, 4*_h : 4*(_h + 1)]
+                    )
+                for _h in range(self.n_hands)]),
+            [T-1, 1, 4*self.n_hands]
+            )
+        err_q = np.transpose(np.reshape(data[1:], [T-1, 4*self.n_hands,1]), [0,2,1]) - exp_q
+        # error
+        sum_error = np.sum(err_q @ Sigma @ np.transpose(err_q, [0,2,1]))
+        return sum_error
 
-    def give_log_prob_of_next_step(self, q0, q1):
-        mu = self.apply_vector_field(q0)
+    def maximize_covariance_component(self, _args):
+        coeff = _args[0]
+        data = _args[1]
+        T = data.shape[0]
+        gamma = _args[2]
+        # expected output
+        exp_q = np.reshape(
+            np.block([
+                quaternion_product(
+                    quaternion_exponential(np.array([0, coeff[_h][0], coeff[_h][1], coeff[_h][2]])),
+                    data[:-1, 4*_h : 4*(_h + 1)]
+                    )
+                for _h in range(self.n_hands)]),
+            [T-1, 4*self.n_hands, 1]
+            )
+        err_q = np.transpose(np.reshape(data[1:], [T-1, 4*self.n_hands,1]), [0,2,1]) - exp_q
+        sigma_num_tmp = np.sum(err_q @ np.transpose(err_q, [0, 2, 1]) * np.reshape(gamma, [T-1,1,1]), 0)
+        # each hand is assumed to be independent to the others; thus we impose
+        # the off-diagonal blocks to be zero
+        sigma_num = np.zeros([4*self.n_hands, 4*self.n_hands])
+        for _h in range(self.n_hands):
+            sigma_num[4*_h:4*(_h+1), 4*_h:4*(_h+1)] = sigma_num_tmp[4*_h:4*(_h+1), 4*_h:4*(_h+1)]
+        sigma_den = np.sum(gamma)
+        return [sigma_num, sigma_den]
+
+    # ======================================================================== #
+
+    def give_prob_of_next_step(self, q_old, q_new):
+        mu = self.apply_vector_field(q_old)
         Sigma = np.zeros([self.n_hands * 4, self.n_hans * 4])
         for _h in self.n_hands:
             Sigma[self.n_hands * 4 : (self.n_hands + 1) * 4, self.n_hands * 4 : (self.n_hands + 1) * 4] = self.covariance_m[_h]
-        return log_normal_prob(q0, mu, Sigma)
+        return normal_prob(q_new, mu, Sigma)
+
+    def give_log_prob_of_next_step(self, q_old, q_new):
+        mu = self.apply_vector_field(q_old)
+        Sigma = np.zeros([self.n_hands * 4, self.n_hands * 4])
+        for _h in range(self.n_hands):
+            Sigma[_h * 4 : (_h + 1) * 4, _h * 4 : (_h + 1) * 4] = self.covariance_m[_h]
+        return log_normal_prob(q_new, mu, Sigma)
 
     def apply_vector_field(self, q):
         list_out = []
         for _h in range(self.n_hands):
             list_out.append(
                 normalize_vect(
-                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4])
+                    quaternion_product(self.vect_f[_h], q[_h * 4: (_h + 1) * 4])
                 ))
         out = np.block(list_out)
         return out
@@ -626,7 +672,7 @@ class Unit_Quaternion(object):
         for _h in range(self.n_hands):
             list_out.append(
                 normalize_vect(
-                    quaternion_product(self.vect_f, q[_h * 4: (_h + 1) * 4]) + self.covariance_m[_h] @ np.random.randn(4)
+                    quaternion_product(self.vect_f[_h], q[_h * 4: (_h + 1) * 4]) + self.covariance_m[_h] @ np.random.randn(4)
                 ))
         out = np.block(list_out)
         return out
@@ -965,23 +1011,106 @@ class Linear_Hand_Quadratic_Gripper(object):
             covariance[4*_h + 3, 4*_h + 3] = self.covariance_gripper[_h]
         return self.apply_vector_field(x) + covariance @ np.random.randn(self.n_dim)
 
+class Pose_Linear(object):
+    def __init__(self, n_hands):
+        from nl_arhmm.dynamic import Linear_Dynamic, Unit_Quaternion
+        self.n_hands = n_hands
+        self.cart_dyn = [Linear_Dynamic(3) for _h in range(n_hands)]
+        self.unit_quat = [Unit_Quaternion(1) for _h in range(n_hands)]
+        return
+
+    def learn_vector_field(self, _in_set, _out_set):
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        return
+
+    def simulate_step(self, y):
+        y_out = np.zeros(7 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[_h * 7 : _h * 7 + 3] = self.cart_dyn[_h].simulate_step(y[_h * 7 : _h * 7 + 3]) # h-th cartesian
+            y_out[_h * 7 + 3 : _h * 7 + 7] = self.unit_quat[_h].simulate_step(y[_h * 7 + 3 : _h * 7 + 7]) # h-th quaternion
+        return y_out
+
+    def apply_vector_field(self, y):
+        y_out = np.zeros(7 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[_h * 7 : _h * 7 + 3] = self.cart_dyn[_h].apply_vector_field(y[_h * 7 : _h * 7 + 3]) # h-th cartesian
+            y_out[_h * 7 + 3 : _h * 7 + 7] = self.unit_quat[_h].apply_vector_field(y[_h * 7 + 3 : _h * 7 + 7]) # h-th quaternion
+        return y_out
+
+    def give_log_prob_of_next_step(self, y_past, y_pres):
+        logprob = 0
+        for _h in range(self.n_hands):
+            logprob += self.cart_dyn[_h].give_log_prob_of_next_step(y_past[_h * 7 : _h * 7 + 3], y_pres[_h * 7 : _h * 7 + 3]) # h-th cartesian
+            logprob += self.unit_quat[_h].give_log_prob_of_next_step(y_past[_h * 7 + 3 : _h * 7 + 7], y_pres[_h * 7 + 3 : _h * 7 + 7]) # h-th quaternion
+        return logprob
+
+    def maximize_emission(self, data_set, gamma_set):
+        for _h in range(self.n_hands):
+            _data_set_cart = [_data[:, _h * 7 : _h * 7 + 3] for _data in data_set]
+            _data_set_quat = [_data[:, _h * 7 + 3 : _h * 7 + 7] for _data in data_set]
+            self.cart_dyn[_h].maximize_emission(_data_set_cart, gamma_set)
+            self.unit_quat[_h].maximize_emission(_data_set_quat, gamma_set)
+        return
+
+
+#===============================================================================#
+# The following code is a "template" on how to write a new ARHMM generalization #
+#===============================================================================#
+'''
+class New_ARHMM(object):
+    def __init__(self,):
+        return
+
+    #==========================================================================#
+    # the next two functions are used only in the initialization of the AR-HMM #
+    #==========================================================================#
+    def learn_vector_field(self, _in_set, _out_set):
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        return
+
+    #=========================================================#
+    # next functions are used to simulate and learn the model #
+    #=========================================================#
+    def simulate_step(self, y):
+        return
+
+    def apply_vector_field(self, y):
+        return
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        return
+
+    def maximize_emission(self, data_set, gamma_set):
+        return
+'''
+
 #───────────────────────────────#
 # Methods to test the functions #
 #───────────────────────────────#
 
 if __name__ == "__main__":
 
-    from dynamic import Unit_Quaternion
+    from dynamic import Pose_Linear
     from nl_arhmm.utils import normalize_rows
 
     # Setup dynamic
-    n_hands = 1
+    n_hands = 2
     T = 20
-    dyn = Unit_Quaternion(n_hands)
-    data_set = [normalize_rows(np.random.rand(T, 4))]
-    gamma_set = [np.random.rand(T-1)] # gamma is one less than the data length
+    dyn = Pose_Linear(n_hands)
 
-    # Testing methods
-    print(dyn.matrix_H(data_set[0], 0))
-    print(dyn.gradient(data_set[0], gamma_set[0]))
-
+    # Testing the EM functions
+    coeff = [np.random.rand(3) for _h in range(n_hands)]
+    data = normalize_rows(np.random.rand(T, 7*n_hands))
+    gamma = np.random.rand(T-1)
+    print("test dynamic step")
+    print(dyn.simulate_step(np.random.rand(7*n_hands)))
+    print("test apply vector field")
+    print(dyn.apply_vector_field(np.random.rand(7*n_hands)))
+    print("test log probability")
+    print(dyn.give_log_prob_of_next_step(data[0], data[1]))
+    print("test maximize emission")
+    print(dyn.maximize_emission([data], [gamma]))
