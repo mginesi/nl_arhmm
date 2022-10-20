@@ -31,7 +31,7 @@ n_data = 10
 simulations = []
 true_labels = []
 for _n in range(n_data):
-    [_sim, _mode] = model_true.simulate(normalize_vect(np.random.rand(4)), int(100 + np.floor(20 * np.random.rand()) - 10))
+    [_sim, _mode] = model_true.simulate(normalize_vect(np.random.rand(7 * 2)), int(100 + np.floor(20 * np.random.rand()) - 10))
     simulations.append(copy.deepcopy(_sim))
     true_labels.append(copy.deepcopy(_mode))
 
