@@ -166,7 +166,8 @@ class ARHMM(object):
         alpha_stream = [forward_stream[i][0] for i in range(len(forward_stream))]
         c_stream = [forward_stream[i][1] for i in range(len(forward_stream))]
         new_lh = self.give_log_likelihood(c_stream)
-        print('Step 0: LH = ' + str(new_lh))
+        if verbose:
+            print('Step 0: LH = ' + str(new_lh))
         convergence = False
         while not convergence:
             count += 1
