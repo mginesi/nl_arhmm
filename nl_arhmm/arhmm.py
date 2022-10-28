@@ -545,3 +545,40 @@ class Pose_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
+class Orientation_Gripper_ARHMM(ARHMM):
+    def __init__(self, n_modes, n_hand, correction=1e-08):
+        from nl_arhmm.dynamic import Orientation_Gripper
+        self.n_hand = n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.n_dim = self.n_hand * 5
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Orientation_Gripper(self.n_hands))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
+class Pose_Gripper_ARHMM(ARHMM):
+    def __init__(self, n_modes, n_hand, correction=1e-08):
+        from nl_arhmm.dynamic import Pose_Gripper
+        self.n_hand = n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.n_dim = self.n_hand * 8
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Pose_Gripper(self.n_hands))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
+#===============================================================================#
+# The following code is a "template" on how to write a new ARHMM generalization #
+#===============================================================================#
+'''
+class New_ARHMM(ARHMM):
+    def __init__(self, n_modes, n_hand, correction=1e-08):
+
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+'''

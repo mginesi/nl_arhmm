@@ -1054,12 +1054,111 @@ class Pose_Linear(object):
             self.unit_quat[_h].maximize_emission(_data_set_quat, gamma_set)
         return
 
+class Orientation_Gripper(object):
+    def __init__(self, n_hands):
+        from nl_arhmm.dynamic import Unit_Quaternion, Quadratic_Dynamic
+        self.n_hands = n_hands
+        # the expected data is [q_1 , g_1, q_2, g_2, ... , q_n, g_n]
+        self.quat_dyn = [Unit_Quaternion(1) for _h in range(n_hands)]
+        self.grip_dyn = [Quadratic_Dynamic(1) for _h in range(n_hands)]
+        return
+
+    def learn_vector_field(self, _in_set, _out_set):
+        #TODO
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        #TODO
+        return
+
+    #=========================================================#
+    # next functions are used to simulate and learn the model #
+    #=========================================================#
+    def simulate_step(self, y):
+        y_out = np.zeros(5 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[5 * _h : 5* _h + 4] = self.quat_dyn[_h].simulate_step(y[5*_h : 5*_h + 4])
+            y_out[5* _h + 4] = self.grip_dyn[_h].simulate_step(y[5*_h + 4])
+        return y_out
+
+    def apply_vector_field(self, y):
+        y_out = np.zeros(5 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[5 * _h : 5* _h + 4] = self.quat_dyn[_h].apply_vector_field(y[5*_h : 5*_h + 4])
+            y_out[5* _h + 4] = self.grip_dyn[_h].apply_vector_field(y[5*_h + 4])
+        return y_out
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        logp = 0
+        for _h in range(self.n_hands):
+            logp += self.quat_dyn[_h].give_log_prob_of_next_step(y0[5*_h : 5*_h+4], y1[5*_h:5*_h+4])
+            logp += self.grip_dyn[_h].give_log_prob_of_next_step(y0[5*_h+4], y1[5*_h+4])
+        return logp
+
+    def maximize_emission(self, data_set, gamma_set):
+        for _h in range(self.n_hands):
+            self.quat_dyn[_h].maximize_emission(data_set[:,5*_h : 5*_h + 4], gamma_set)
+            self.grip_dyn[_h].maximize_emission(np.array([data_set[:,5*_h + 4]]).transpose, gamma_set)
+        return
+
+class Pose_Gripper(object):
+    def __init__(self, n_hands):
+        from nl_arhmm.dynamic import Unit_Quaternion, Quadratic_Dynamic
+        self.n_hands = n_hands
+        # the expected data is [y_1, q_1 , g_1, y_2, q_2, g_2, ... , y_n, q_n, g_n]
+        self.cart_dyn = [Linear_Dynamic(3) for _h in range(n_hands)]
+        self.quat_dyn = [Unit_Quaternion(1) for _h in range(n_hands)]
+        self.grip_dyn = [Quadratic_Dynamic(1) for _h in range(n_hands)]
+        return
+
+    def learn_vector_field(self, _in_set, _out_set):
+        #TODO
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        #TODO
+        return
+
+    #=========================================================#
+    # next functions are used to simulate and learn the model #
+    #=========================================================#
+    def simulate_step(self, y):
+        y_out = np.zeros(8 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[8 * _h : 8* _h + 3] = self.cart_dyn[_h].simulate_step(y[8*_h : 8*_h + 3])
+            y_out[8* _h + 3: 8*_h + 7] = self.quat_dyn[_h].simulate_step(y[8*_h + 3 : 8*_h + 7])
+            y_out[8* _h + 7] = self.grip_dyn[_h].simulate_step(y[8*_h + 7])
+        return y_out
+
+    def apply_vector_field(self, y):
+        y_out = np.zeros(8 * self.n_hands)
+        for _h in range(self.n_hands):
+            y_out[8 * _h : 8* _h + 3] = self.cart_dyn[_h].apply_vector_field(y[8*_h : 8*_h + 3])
+            y_out[8* _h + 3: 8*_h + 7] = self.quat_dyn[_h].apply_vector_field(y[8*_h + 3 : 8*_h + 7])
+            y_out[8* _h + 7] = self.grip_dyn[_h].apply_vector_field(y[8*_h + 7])
+        return y_out
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        logp = 0
+        for _h in range(self.n_hands):
+            logp += self.cart_dyn[_h].give_log_prob_of_next_step(y0[8*_h : 8*_h + 3], y1[8*_h : 8*_h + 3])
+            logp += self.quat_dyn[_h].give_log_prob_of_next_step(y0[8*_h + 3: 8*_h + 7], y1[8*_h + 3 : 8*_h + 7])
+            logp += self.grip_dyn[_h].give_log_prob_of_next_step(y0[8*_h + 7], y1[8*_h + 7])
+        return logp
+
+    def maximize_emission(self, data_set, gamma_set):
+        for _h in range(self.n_hands):
+            self.cart_dyn[_h].maximize_emission(data_set[:, 8*_h : 8*_h + 3], gamma_set)
+            self.quat_dyn[_h].maximize_emission(data_set[:, 8*_h + 3 : 8*_h + 7], gamma_set)
+            self.grip_dyn[_h].maximize_emission(data_set[:, 8*_h + 7], gamma_set)
+        return
+
 
 #===============================================================================#
 # The following code is a "template" on how to write a new ARHMM generalization #
 #===============================================================================#
 '''
-class New_ARHMM(object):
+class New_dynamic(object):
     def __init__(self,):
         return
 
@@ -1067,24 +1166,30 @@ class New_ARHMM(object):
     # the next two functions are used only in the initialization of the AR-HMM #
     #==========================================================================#
     def learn_vector_field(self, _in_set, _out_set):
+        #TODO
         return
 
     def estimate_cov_mtrx(self, _in_set, _out_set):
+        #TODO
         return
 
     #=========================================================#
     # next functions are used to simulate and learn the model #
     #=========================================================#
     def simulate_step(self, y):
+        #TODO
         return
 
     def apply_vector_field(self, y):
+        #TODO
         return
 
     def give_log_prob_of_next_step(self, y0, y1):
+        #TODO
         return
 
     def maximize_emission(self, data_set, gamma_set):
+        #TODO
         return
 '''
 
