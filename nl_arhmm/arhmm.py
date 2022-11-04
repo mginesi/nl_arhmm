@@ -569,7 +569,7 @@ class Pose_Gripper_ARHMM(ARHMM):
         self.n_dim = self.n_hand * 8
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Pose_Gripper(self.n_hands))
+            self.dynamics.append(Pose_Gripper(self.n_hand))
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
