@@ -249,6 +249,8 @@ class Quadratic_Dynamic(object):
         phi_i(x) = x_i, i = 1, 2, ..., d
         phi_{d + d * (i - 1) + j} (x) = x_i x * j, i = 1, 2, ..., d, j = i, i+1, ..., d
         '''
+        if np.isscalar(x):
+            return np.array([1, x, x * x])
         phi = np.ones(1 + self.n_dim)
         phi[0] = 1.0
         phi[1:] = x
@@ -339,6 +341,10 @@ class Quadratic_Dynamic(object):
 
     def give_log_prob_of_next_step(self, y0, y1):
         mu = self.apply_vector_field(y0)
+        if np.isscalar(mu):
+            mu = np.array([mu])
+        if np.isscalar(y1):
+            y1 = np.array([y1])
         return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
@@ -360,6 +366,8 @@ class Cubic_Dynamic(object):
         '''
         Compute the vector phi(x)
         '''
+        if np.isscalar(x):
+            return np.array([1, x, x*x, x*x*x])
         phi = np.ones(1 + self.n_dim)
         phi[0] = 1.0
         phi[1:] = x
@@ -1097,8 +1105,11 @@ class Orientation_Gripper(object):
 
     def maximize_emission(self, data_set, gamma_set):
         for _h in range(self.n_hands):
-            self.quat_dyn[_h].maximize_emission(data_set[:,5*_h : 5*_h + 4], gamma_set)
-            self.grip_dyn[_h].maximize_emission(np.array([data_set[:,5*_h + 4]]).transpose, gamma_set)
+            _data_set_quat = [_data[:, 5*_h : 5*_h + 4] for _data in data_set]
+            _data_set_grip = [_data[:, 5*_h + 4] for _data in data_set]
+
+            self.quat_dyn[_h].maximize_emission(_data_set_quat, gamma_set)
+            self.grip_dyn[_h].maximize_emission(np.array([_data_set_grip]).transpose, gamma_set)
         return
 
 class Pose_Gripper(object):
@@ -1148,9 +1159,12 @@ class Pose_Gripper(object):
 
     def maximize_emission(self, data_set, gamma_set):
         for _h in range(self.n_hands):
-            self.cart_dyn[_h].maximize_emission(data_set[:, 8*_h : 8*_h + 3], gamma_set)
-            self.quat_dyn[_h].maximize_emission(data_set[:, 8*_h + 3 : 8*_h + 7], gamma_set)
-            self.grip_dyn[_h].maximize_emission(data_set[:, 8*_h + 7], gamma_set)
+            _data_set_cart = [_data[:, 8*_h : 8*_h + 3] for _data in data_set]
+            _data_set_quat = [_data[:, 8*_h + 3 : 8*_h + 7] for _data in data_set]
+            _data_set_grip = [np.array([_data[:, 8*_h + 7]]).transpose() for _data in data_set]
+            self.cart_dyn[_h].maximize_emission(_data_set_cart, gamma_set)
+            self.quat_dyn[_h].maximize_emission(_data_set_quat, gamma_set)
+            self.grip_dyn[_h].maximize_emission(_data_set_grip, gamma_set)
         return
 
 
