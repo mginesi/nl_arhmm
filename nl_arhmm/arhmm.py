@@ -13,7 +13,6 @@ import gc
 gc.enable()
 
 class ARHMM(object):
-
     def __init__(self, n_dim, n_modes, dynamics, correction=1e-14):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
@@ -397,8 +396,11 @@ class ARHMM(object):
         gamma = normalize_rows(gamma + self.correction)
         return gamma
 
-class GRBF_ARHMM(ARHMM):
+#==============================#
+# DIFFERENT FAMILIES OF AR-HMM #
+#==============================#
 
+class GRBF_ARHMM(ARHMM):
     def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
@@ -416,7 +418,6 @@ class GRBF_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Linear_ARHMM(ARHMM):
-
     def __init__(self, n_dim, n_modes, correction=1e-08):
         '''
         Class to implement Auto-Regressive Hidden Markov Models.
@@ -434,7 +435,6 @@ class Linear_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Quadratic_ARHMM(ARHMM):
-
     def __init__(self, n_dim, n_modes, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
@@ -452,7 +452,6 @@ class Quadratic_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Cubic_ARHMM(ARHMM):
-
     def __init__(self, n_dim, n_modes, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
@@ -469,8 +468,11 @@ class Cubic_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-class Hand_Gripper_ARHMM(ARHMM):
+#=============================#
+# DECOUPLED OBSERVED VARIABLE #
+#=============================#
 
+class Hand_Gripper_ARHMM(ARHMM):
     def __init__(self, n_modes, n_hand=1, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
@@ -489,7 +491,6 @@ class Hand_Gripper_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Decoupled_Linear_ARHMM(ARHMM):
-
     def __init__(self, n_modes, n_dim, n_hand, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
@@ -507,8 +508,19 @@ class Decoupled_Linear_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-class Unit_Quaternion_ARHMM(ARHMM):
+class Generic_Decoupled_Linear(ARHMM):
+    def __init__(self, n_modes, dimensions, correction=1e-08):
+        from nl_arhmm.dynamic import Generic_Multiple_Linear
+        self.n_hand = len(dimensions)
+        self.n_dim = sum(dimensions)
+        self.n_modes - n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.dynamics = [Generic_Multiple_Linear(dimensions) for _ in range(self.n_modes)]
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
+class Unit_Quaternion_ARHMM(ARHMM):
     def __init__(self, n_modes, n_hand, correction=1e-08):
         '''
         Class to implement Unit Quaternion Auto-Regressive Hidden Markov Models.
@@ -527,7 +539,6 @@ class Unit_Quaternion_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Pose_ARHMM(ARHMM):
-
     def __init__(self, n_modes, n_hand, correction=1e-08):
         '''
         Class to implement Unit Quaternion Auto-Regressive Hidden Markov Models.

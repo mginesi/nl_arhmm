@@ -130,7 +130,7 @@ class Linear_Dynamic(object):
         self.n_basis = self.n_dim
         _phi = self.compute_phi_vect(np.zeros(n_dim))
         self.n_basis = len(_phi) - 1
-        self.weights = np.zeros([self.n_dim, self.n_basis + 1])
+        self.weights = np.random.rand(self.n_dim, self.n_basis + 1)
         self.covariance = np.eye(self.n_dim)
 
     def compute_phi_vect(self, x):
@@ -139,8 +139,11 @@ class Linear_Dynamic(object):
           phi_0 = 1
           phi_j = x_j
         '''
-        phi = np.ones(1)
-        phi = np.append(phi, copy.deepcopy(x))
+        if np.isscalar(x):
+            phi = np.array([1,x])
+        else:
+            phi = np.ones(1)
+            phi = np.append(phi, copy.deepcopy(x))
         return phi
 
     def estimate_cov_mtrx(self, input_set, output_set):
@@ -228,6 +231,8 @@ class Linear_Dynamic(object):
         return log_normal_prob(y1, mu, self.covariance)
 
     def apply_vector_field(self, x):
+        if np.isscalar(x):
+            x = np.array([x])
         return self.weights @ self.compute_phi_vect(x)
 
     def simulate_step(self, x):
@@ -823,8 +828,47 @@ class Multiple_Linear(object):
             covariance[(self.n_dim)*_h : (self.n_dim)*_h + self.n_dim, (self.n_dim)*_h : (self.n_dim)*_h + self.n_dim] = self.covariance[_h]
         return self.apply_vector_field(x) + covariance @ np.random.randn(self.n_dim)
 
-class Linear_Hand_Quadratic_Gripper(object):
+class Generic_Multiple_Linear(object):
+    def __init__(self, dimensions):
+        from nl_arhmm.dynamic import Linear_Dynamic
+        self.dynamics = [Linear_Dynamic(_dim) for _dim in dimensions]
+        self.cumulative_dimensions = [0] + [sum(dimensions[:k+1]) for k in range(len(dimensions))]
+        self.n_hands = len(dimensions)
+        return
 
+    def learn_vector_field(self, _in_set, _out_set):
+        #TODO
+        return
+
+    def estimate_cov_mtrx(self, _in_set, _out_set):
+        #TODO
+        return
+
+    def simulate_step(self, y):
+        y_out = np.zeros_like(y)
+        for _h in range(self.n_hands):
+            y_out[self.cumulative_dimensions[_h]:self.cumulative_dimensions[_h+1]] = self.dynamics[_h].simulate_step(y[self.cumulative_dimensions[_h]:self.cumulative_dimensions[_h+1]])
+        return y_out
+
+    def apply_vector_field(self, y):
+        y_out = np.zeros_like(y)
+        for _h in range(self.n_hands):
+            y_out[self.cumulative_dimensions[_h]:self.cumulative_dimensions[_h+1]] = self.dynamics[_h].apply_vector_field(y[self.cumulative_dimensions[_h]:self.cumulative_dimensions[_h+1]])
+        return y_out
+
+    def give_log_prob_of_next_step(self, y0, y1):
+        logout = 0
+        for _h in range(self.n_hands):
+            logout += self.dynamics[_h].give_log_prob_of_next_step(y0[self.cumulative_dimensions[_h]:self.cumulative_dimensions[_h+1]], y1[self.cumulative_dimensions[_h]:self.cumulative_dimensions[_h+1]])
+        return logout
+
+    def maximize_emission(self, data_set, gamma_set):
+        for _h in range(self.n_hands):
+            data_set_temp = [_data[:, self.cumulative_dimensions[_h] : self.cumulative_dimensions[_h+1]] for _data in data_set]
+            self.dynamics[_h].maximize_emission(data_set_temp, gamma_set)
+        return
+
+class Linear_Hand_Quadratic_Gripper(object):
     def __init__(self, n_hand):
         self.n_hand = n_hand
         self.n_dim = 4 * self.n_hand
@@ -1213,30 +1257,38 @@ class New_dynamic(object):
 
 if __name__ == "__main__":
 
-    from dynamic import Unit_Quaternion as model_test
+    from dynamic import Generic_Multiple_Linear as model_test
     from nl_arhmm.utils import normalize_rows
 
     # Setup dynamic
-    n_hands = 2
+    dimensions = [3, 1]
     T = 20
-    dyn = model_test(n_hands)
+    dyn = model_test(dimensions)
+    data = [np.random.rand(T, sum(dimensions))]
+    gamma = [np.random.rand(T-1)]
 
     # Testing the EM functions
-    coeff = [np.random.rand(3) for _h in range(n_hands)]
-    data = normalize_rows(np.random.rand(T, 4*n_hands))
-    gamma = np.random.rand(T-1)
-    print("test dynamic step")
-    print(dyn.simulate_step(data[0]))
-    print("test apply vector field")
-    print(dyn.apply_vector_field(np.random.rand(4*n_hands)))
-    print("test log probability")
-    print(dyn.give_log_prob_of_next_step(data[0], data[1]))
-    print("test maximize emission")
-    print(dyn.maximize_emission([data], [gamma]))
-    print("test dynamic step")
-    print(dyn.simulate_step(np.random.rand(4*n_hands)))
-    print("test apply vector field")
-    print(dyn.apply_vector_field(np.random.rand(4*n_hands)))
-    print("test log probability")
-    print(dyn.give_log_prob_of_next_step(data[0], data[1]))
+    print(" == APPLY VECTOR FIELD == ")
+    print(dyn.apply_vector_field(data[0][0]))
+    print(dyn.dynamics[0].apply_vector_field(data[0][0][:3]))
+    print(dyn.dynamics[1].apply_vector_field(data[0][0][3:]))
+    print(" == SIMULATE STEP == ")
+    print(dyn.simulate_step(data[0][0]))
+    print(" == GIVE LOG PROB == ")
+    print(dyn.give_log_prob_of_next_step(data[0][0], data[0][1]))
+    print(
+        dyn.dynamics[0].give_log_prob_of_next_step(data[0][0][:3], data[0][1][:3]) +
+        dyn.dynamics[1].give_log_prob_of_next_step(data[0][0][3:], data[0][1][3:]))
+    print(" == MAXIMIZE EMISSIONS == ")
+    print("pre max")
+    print(dyn.dynamics[0].weights)
+    print(dyn.dynamics[1].weights)
+    print(dyn.dynamics[0].covariance)
+    print(dyn.dynamics[1].covariance)
+    dyn.maximize_emission(data, gamma)
+    print("post max")
+    print(dyn.dynamics[0].weights)
+    print(dyn.dynamics[1].weights)
+    print(dyn.dynamics[0].covariance)
+    print(dyn.dynamics[1].covariance)
 
