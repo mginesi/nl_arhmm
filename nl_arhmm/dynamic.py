@@ -7,7 +7,6 @@ from nl_arhmm.utils import normalize_vect, normalize_rows
 import multiprocessing
 
 class GRBF_Dynamic(object):
-
     def __init__(self, n_dim, centers, widths):
         '''
         Class encoding the dynamic.
@@ -121,7 +120,6 @@ class GRBF_Dynamic(object):
         return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 class Linear_Dynamic(object):
-
     def __init__(self, n_dim):
         '''
         Class encoding the dynamic.
@@ -239,7 +237,6 @@ class Linear_Dynamic(object):
         return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 class Quadratic_Dynamic(object):
-
     def __init__(self, n_dim):
         self.n_dim = n_dim
         _phi = self.compute_phi_vect(np.zeros(n_dim))
@@ -359,7 +356,6 @@ class Quadratic_Dynamic(object):
         return self.apply_vector_field(x) + self.covariance @ np.random.randn(self.n_dim)
 
 class Cubic_Dynamic(object):
-
     def __init__(self, n_dim):
         self.n_dim = n_dim
         _phi = self.compute_phi_vect(np.zeros(n_dim))
@@ -478,7 +474,6 @@ class Cubic_Dynamic(object):
 #─────────────────────────#
 
 class Unit_Quaternion(object):
-
     def __init__(self, n_hands):
         self.n_hands = n_hands
         self.vf_coeff = [np.random.rand(3) for _ in range(self.n_hands)]
@@ -695,7 +690,6 @@ class Unit_Quaternion(object):
 #──────────────────────────────#
 
 class Multiple_Linear(object):
-
     def __init__(self, n_hand, n_dim):
         self.n_hand = n_hand
         self.n_dim = n_dim
