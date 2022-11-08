@@ -513,7 +513,7 @@ class Generic_Decoupled_Linear_ARHMM(ARHMM):
         from nl_arhmm.dynamic import Generic_Multiple_Linear
         self.n_hand = len(dimensions)
         self.n_dim = sum(dimensions)
-        self.n_modes - n_modes
+        self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
         self.dynamics = [Generic_Multiple_Linear(dimensions) for _ in range(self.n_modes)]
