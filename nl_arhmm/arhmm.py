@@ -508,7 +508,7 @@ class Decoupled_Linear_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-class Generic_Decoupled_Linear(ARHMM):
+class Generic_Decoupled_Linear_ARHMM(ARHMM):
     def __init__(self, n_modes, dimensions, correction=1e-08):
         from nl_arhmm.dynamic import Generic_Multiple_Linear
         self.n_hand = len(dimensions)
