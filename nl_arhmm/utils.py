@@ -141,6 +141,9 @@ def quaternion_product(q0, q1):
         ValueError("quaternion_product: arguments must be 1-D or 2-D arrays. If both are 2-D, they must have identical shape")
     return q_out
 
+def normalize_quaternion(q):
+    return (q.T / np.linalg.norm(q, axis=1)).T
+
 #───────#
 # TESTS #
 #───────#
