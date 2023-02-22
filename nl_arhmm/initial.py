@@ -1,7 +1,6 @@
 import numpy as np
 
 class Initial(object):
-
     def __init__(self, n_modes=3, density=None):
         self.n_modes = n_modes
         if density is None:

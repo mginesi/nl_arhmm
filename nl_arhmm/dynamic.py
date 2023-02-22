@@ -472,7 +472,6 @@ class Cubic_Dynamic(object):
 #─────────────────────────#
 # UNIT QUATERNION DYNAMIC #
 #─────────────────────────#
-
 class Unit_Quaternion(object):
     def __init__(self, n_hands):
         self.n_hands = n_hands
@@ -688,7 +687,6 @@ class Unit_Quaternion(object):
 #──────────────────────────────#
 # DECOUPLED OBSERVED VARIABLES #
 #──────────────────────────────#
-
 class Multiple_Linear(object):
     def __init__(self, n_hand, n_dim):
         self.n_hand = n_hand
@@ -1150,6 +1148,11 @@ class Orientation_Gripper(object):
             self.grip_dyn[_h].maximize_emission(np.array([_data_set_grip]).transpose, gamma_set)
         return
 
+# ------------------------------------------- # 
+#  R³ linear for Cartesian position           #
+#  S³ linear for Unit quaternion orientation  #
+#  R¹ quadratic for gripper angle             #
+# ------------------------------------------- # 
 class Pose_Gripper(object):
     def __init__(self, n_hands):
         from nl_arhmm.dynamic import Unit_Quaternion, Quadratic_Dynamic
@@ -1250,7 +1253,6 @@ class New_dynamic(object):
 #───────────────────────────────#
 
 if __name__ == "__main__":
-
     from dynamic import Generic_Multiple_Linear as model_test
     from nl_arhmm.utils import normalize_rows
 

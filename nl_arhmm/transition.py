@@ -2,7 +2,6 @@ import numpy as np
 from nl_arhmm.utils import normalize_rows
 
 class Transition(object):
-
     def __init__(self, n_modes=3, trans_mtrx=None):
         self.n_modes = n_modes
         if trans_mtrx is None:

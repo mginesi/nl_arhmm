@@ -6,3 +6,5 @@ nl_arhmm.egg-info/requires.txt
 nl_arhmm.egg-info/SOURCES.txt
 nl_arhmm.egg-info/top_level.txt
 build/
+res/
+results/

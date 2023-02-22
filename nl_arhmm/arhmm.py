@@ -202,18 +202,10 @@ class ARHMM(object):
 
         return
 
-    # def give_prob_of_next_step(self, y0, y1, mode):
-    #     mu = self.dynamics[mode].apply_vector_field(y0)
-    #     return normal_prob(y1, mu, self.sigma_set[mode])
-
-    # def give_log_prob_of_next_step(self, y0, y1, mode):
-    #     mu = self.dynamics[mode].apply_vector_field(y0)
-    #     return log_normal_prob(y1, mu, self.sigma_set[mode])
-
     def set_up_dynamic_guess(self, in_data, out_data):
         '''
-        Set up a guess for the weights by dividing the input and output set in m equal
-        segments (m being the number of modes).
+        Set up a guess for the weights by dividing the input and output set in
+        m equal segments (m being the number of modes).
         '''
         t_seg = int(len(in_data) / self.n_modes)
         for _m in range(self.n_modes):
@@ -240,8 +232,8 @@ class ARHMM(object):
 
     def viterbi(self, data_stream):
         '''
-        Applies the Viterbi algorithm to compute the most probable sequence of states given
-        the observations.
+        Applies the Viterbi algorithm to compute the most probable sequence of
+        states given the observations.
         '''
         # Initialize the variables
         T = len(data_stream) - 1
@@ -274,10 +266,9 @@ class ARHMM(object):
             z[_t - 1] = T_2[_t, int(z[_t])]
         return z[1:]
 
-    # --------------------------------------------------------------------------------------- #
-    #                              Expectation step functions                                 #
-    # --------------------------------------------------------------------------------------- #
-
+    # ----------------------------------------------------------------------- #
+    #                      Expectation step functions                         #
+    # ----------------------------------------------------------------------- #
     def compute_log_probability(self, _data):
         logp_future = []
         T = len(_data) - 1
@@ -349,11 +340,9 @@ class ARHMM(object):
             _xi[_t] = normalize_mtrx(np.exp(_xi[_t]))
         return _xi
 
-    # --------------------------------------------------------------------------------------- #
-    #                              Maximization step functions                                #
-    # --------------------------------------------------------------------------------------- #
-
-
+    # ----------------------------------------------------------------------- #
+    #                      Maximization step functions                        #
+    # ----------------------------------------------------------------------- #
     def maximize_initial(self, gamma_set):
         new_init = np.zeros(self.n_modes)
         K = len(gamma_set)
@@ -396,10 +385,9 @@ class ARHMM(object):
         gamma = normalize_rows(gamma + self.correction)
         return gamma
 
-#==============================#
-# DIFFERENT FAMILIES OF AR-HMM #
-#==============================#
-
+# ======================================== #
+#  DIFFERENT FAMILIES OF CARTESIAN AR-HMM  #
+# ======================================== #
 class GRBF_ARHMM(ARHMM):
     def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, correction=1e-08):
         '''
@@ -468,15 +456,32 @@ class Cubic_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-#=============================#
-# DECOUPLED OBSERVED VARIABLE #
-#=============================#
+# ===================== #
+#  NON-CARTESIAN ARHMM  #
+# ===================== #
+class Unit_Quaternion_ARHMM(ARHMM):
+    def __init__(self, n_modes, n_hand, correction=1e-08):
+        '''
+        Class to implement Unit Quaternion Auto-Regressive Hidden Markov Models.
+        '''
+        from nl_arhmm.dynamic import Unit_Quaternion
 
+        self.n_hand = n_hand
+        self.n_modes = n_modes
+        self.initial = Initial(self.n_modes)
+        self.transition = Transition(self.n_modes)
+        self.n_dim = self.n_hand * 4
+        self.dynamics = []
+        for _m in range(self.n_modes):
+            self.dynamics.append(Unit_Quaternion(self.n_hand))
+        self.correction = correction
+        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
+
+# ============================= #
+#  DECOUPLED OBSERVED VARIABLE  #
+# ============================= #
 class Hand_Gripper_ARHMM(ARHMM):
     def __init__(self, n_modes, n_hand=1, correction=1e-08):
-        '''
-        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
-        '''
         from nl_arhmm.dynamic import Linear_Hand_Quadratic_Gripper
 
         self.n_hand = n_hand
@@ -492,9 +497,6 @@ class Hand_Gripper_ARHMM(ARHMM):
 
 class Decoupled_Linear_ARHMM(ARHMM):
     def __init__(self, n_modes, n_dim, n_hand, correction=1e-08):
-        '''
-        Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
-        '''
         from nl_arhmm.dynamic import Multiple_Linear
 
         self.n_hand = n_hand
@@ -520,21 +522,17 @@ class Generic_Decoupled_Linear_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-class Unit_Quaternion_ARHMM(ARHMM):
+class Orientation_Gripper_ARHMM(ARHMM):
     def __init__(self, n_modes, n_hand, correction=1e-08):
-        '''
-        Class to implement Unit Quaternion Auto-Regressive Hidden Markov Models.
-        '''
-        from nl_arhmm.dynamic import Unit_Quaternion
-
+        from nl_arhmm.dynamic import Orientation_Gripper
         self.n_hand = n_hand
         self.n_modes = n_modes
         self.initial = Initial(self.n_modes)
         self.transition = Transition(self.n_modes)
-        self.n_dim = self.n_hand * 4
+        self.n_dim = self.n_hand * 5
         self.dynamics = []
         for _m in range(self.n_modes):
-            self.dynamics.append(Unit_Quaternion(self.n_hand))
+            self.dynamics.append(Orientation_Gripper(self.n_hands))
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
@@ -556,20 +554,6 @@ class Pose_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-class Orientation_Gripper_ARHMM(ARHMM):
-    def __init__(self, n_modes, n_hand, correction=1e-08):
-        from nl_arhmm.dynamic import Orientation_Gripper
-        self.n_hand = n_hand
-        self.n_modes = n_modes
-        self.initial = Initial(self.n_modes)
-        self.transition = Transition(self.n_modes)
-        self.n_dim = self.n_hand * 5
-        self.dynamics = []
-        for _m in range(self.n_modes):
-            self.dynamics.append(Orientation_Gripper(self.n_hands))
-        self.correction = correction
-        self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
-
 class Pose_Gripper_ARHMM(ARHMM):
     def __init__(self, n_modes, n_hand, correction=1e-08):
         from nl_arhmm.dynamic import Pose_Gripper
@@ -584,9 +568,9 @@ class Pose_Gripper_ARHMM(ARHMM):
         self.correction = correction
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
-#===============================================================================#
-# The following code is a "template" on how to write a new ARHMM generalization #
-#===============================================================================#
+# =============================================================================== #
+#  The following code is a "template" on how to write a new ARHMM generalization  #
+# =============================================================================== #
 '''
 class New_ARHMM(ARHMM):
     def __init__(self, n_modes, n_hand, correction=1e-08):
