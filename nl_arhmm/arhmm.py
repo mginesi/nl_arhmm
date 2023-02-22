@@ -389,7 +389,7 @@ class ARHMM(object):
 #  DIFFERENT FAMILIES OF CARTESIAN AR-HMM  #
 # ======================================== #
 class GRBF_ARHMM(ARHMM):
-    def __init__(self, n_dim, n_modes, dyn_center, dyn_widths, correction=1e-08):
+    def __init__(self, n_modes, n_dim, dyn_center, dyn_widths, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -406,7 +406,7 @@ class GRBF_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Linear_ARHMM(ARHMM):
-    def __init__(self, n_dim, n_modes, correction=1e-08):
+    def __init__(self, n_modes, n_dim, correction=1e-08):
         '''
         Class to implement Auto-Regressive Hidden Markov Models.
         '''
@@ -423,7 +423,7 @@ class Linear_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Quadratic_ARHMM(ARHMM):
-    def __init__(self, n_dim, n_modes, correction=1e-08):
+    def __init__(self, n_modes, n_dim, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
@@ -440,7 +440,7 @@ class Quadratic_ARHMM(ARHMM):
         self.model = ARHMM(self.n_dim, self.n_modes, self.dynamics, correction)
 
 class Cubic_ARHMM(ARHMM):
-    def __init__(self, n_dim, n_modes, correction=1e-08):
+    def __init__(self, n_modes, n_dim, correction=1e-08):
         '''
         Class to implement Non-Linear Auto-Regressive Hidden Markov Models.
         '''
