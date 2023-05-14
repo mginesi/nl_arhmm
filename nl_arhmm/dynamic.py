@@ -35,13 +35,17 @@ class GRBF_Dynamic(object):
         It is computed as the covariance of the errors when applying the vector field.
         '''
         # TODO: check if there is a better way!!
+        dims = input_set.shape[1]
         pred_set = []
         for _, _in in enumerate(input_set):
             pred_set.append(self.apply_vector_field(_in))
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(err_set.T)
+        if dims > 1:
+            self.covariance = np.cov(err_set.T)
+        else:
+            self.covariance = np.array([[np.cov(err_set.T)]])
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -150,13 +154,18 @@ class Linear_Dynamic(object):
         It is computed as the covariance of the errors when applying the vector field.
         '''
         # TODO: check if there is a better way!!
+        dims = input_set.shape[1]
         pred_set = []
         for _, _in in enumerate(input_set):
             pred_set.append(self.apply_vector_field(_in))
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(err_set.T)
+        if dims > 1:
+            self.covariance = np.cov(err_set.T)
+        else:
+            self.covariance = np.array([[np.cov(err_set.T)]])
+
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -267,13 +276,17 @@ class Quadratic_Dynamic(object):
         It is computed as the covariance of the errors when applying the vector field.
         '''
         # TODO: check if there is a better way!!
+        dims = input_set.shape[1]
         pred_set = []
         for _, _in in enumerate(input_set):
             pred_set.append(self.apply_vector_field(_in))
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(err_set.T)
+        if dims > 1:
+            self.covariance = np.cov(err_set.T)
+        else:
+            self.covariance = np.array([[np.cov(err_set.T)]])
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
@@ -385,13 +398,17 @@ class Cubic_Dynamic(object):
         It is computed as the covariance of the errors when applying the vector field.
         '''
         # TODO: check if there is a better way!!
+        dims = input_set.shape[1]
         pred_set = []
         for _, _in in enumerate(input_set):
             pred_set.append(self.apply_vector_field(_in))
         pred_set = np.asarray(pred_set)
         output_set = np.asarray(output_set)
         err_set = output_set - pred_set
-        self.covariance = np.cov(err_set.T)
+        if dims > 1:
+            self.covariance = np.cov(err_set.T)
+        else:
+            self.covariance = np.array([[np.cov(err_set.T)]])
 
     def learn_vector_field(self, input_set, output_set, weights=None):
         '''
