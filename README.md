@@ -3,10 +3,11 @@
 This repository contains a Python3 implementation of (Non-Linear) AR-HMM.
 
 ## References ##
-This code is based on the following article:
-https://arxiv.org/abs/2302.11834
+This code is based on the following article:  
+GINESI, Michele; FIORINI, Paolo. Generalization of Auto-Regressive Hidden Markov Models to Non-Linear Dynamics and Unit Quaternion Observation Space. IEEE Robotics and Automation Letters, 2023.
 
 If you use this code, please cite it.
+You can find the complete bibentry in the `ref.bib` file
 
 ## Installation ##
 run (may require superuser permissions)
